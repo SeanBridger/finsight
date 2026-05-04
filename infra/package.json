@@ -1,0 +1,28 @@
+{
+  "name": "infra",
+  "version": "0.1.0",
+  "scripts": {
+    "build": "tsc",
+    "watch": "tsc -w",
+    "test": "jest",
+    "cdk": "cdk",
+    "lint": "eslint 'lib/**/*.ts' 'bin/**/*.ts'",
+    "lint:fix": "eslint 'lib/**/*.ts' 'bin/**/*.ts' --fix"
+  },
+  "devDependencies": {
+    "@types/jest": "^30",
+    "@types/node": "^24.10.1",
+    "@typescript-eslint/eslint-plugin": "^8.59.1",
+    "@typescript-eslint/parser": "^8.59.1",
+    "aws-cdk": "2.1120.0",
+    "eslint": "^10.3.0",
+    "jest": "^30",
+    "ts-jest": "^29",
+    "ts-node": "^10.9.2",
+    "typescript": "~5.9.3"
+  },
+  "dependencies": {
+    "aws-cdk-lib": "^2.251.0",
+    "constructs": "^10.5.0"
+  }
+}
