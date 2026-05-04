@@ -17,29 +17,31 @@ export class ComputeStack extends cdk.Stack {
 
     const { vpc } = props;
 
-    // PrivateLink endpoint for Bedrock Runtime
-    // Allows Fargate tasks in private subnets to call Bedrock without internet access
-    vpc.addInterfaceEndpoint('BedrockRuntimeEndpoint', {
+    // PrivateLink endpoints — created in compute stack so they're torn down with Fargate
+    // These allow private subnet resources to reach AWS services without internet
+    new ec2.InterfaceVpcEndpoint(this, 'BedrockRuntimeEndpoint', {
+      vpc,
       service: ec2.InterfaceVpcEndpointAwsService.BEDROCK_RUNTIME,
       privateDnsEnabled: true,
       subnets: { subnetType: ec2.SubnetType.PRIVATE_ISOLATED },
     });
 
-    // ECR endpoints — required for Fargate to pull container images in private subnets
-    vpc.addInterfaceEndpoint('EcrDockerEndpoint', {
+    new ec2.InterfaceVpcEndpoint(this, 'EcrDockerEndpoint', {
+      vpc,
       service: ec2.InterfaceVpcEndpointAwsService.ECR_DOCKER,
       privateDnsEnabled: true,
       subnets: { subnetType: ec2.SubnetType.PRIVATE_ISOLATED },
     });
 
-    vpc.addInterfaceEndpoint('EcrApiEndpoint', {
+    new ec2.InterfaceVpcEndpoint(this, 'EcrApiEndpoint', {
+      vpc,
       service: ec2.InterfaceVpcEndpointAwsService.ECR,
       privateDnsEnabled: true,
       subnets: { subnetType: ec2.SubnetType.PRIVATE_ISOLATED },
     });
 
-    // CloudWatch Logs — required for Fargate task logging
-    vpc.addInterfaceEndpoint('CloudWatchLogsEndpoint', {
+    new ec2.InterfaceVpcEndpoint(this, 'CloudWatchLogsEndpoint', {
+      vpc,
       service: ec2.InterfaceVpcEndpointAwsService.CLOUDWATCH_LOGS,
       privateDnsEnabled: true,
       subnets: { subnetType: ec2.SubnetType.PRIVATE_ISOLATED },
