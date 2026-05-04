@@ -3,6 +3,12 @@
   "private": true,
   "scripts": {
     "deploy": "./scripts/deploy.sh",
-    "destroy": "./scripts/destroy.sh"
-  }
+    "destroy": "./scripts/destroy.sh",
+    "lint:infra": "cd infra && npm run lint",
+    "lint:backend": "cd backend && ruff check . && ruff format --check .",
+    "lint:infra:fix": "cd infra && npm run lint:fix",
+    "lint:backend:fix": "cd backend && ruff check --fix . && ruff format .",
+    "lint": "npm run lint:infra && npm run lint:backend",
+    "lint:fix": "npm run lint:infra:fix && npm run lint:backend:fix"
+    }
 }
