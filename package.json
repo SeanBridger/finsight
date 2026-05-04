@@ -1,0 +1,8 @@
+{
+  "name": "finsight",
+  "private": true,
+  "scripts": {
+    "deploy": "./scripts/deploy.sh",
+    "destroy": "./scripts/destroy.sh"
+  }
+}
