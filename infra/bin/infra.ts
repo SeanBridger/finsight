@@ -2,6 +2,7 @@
 import * as cdk from 'aws-cdk-lib/core';
 import { ComputeStack } from '../lib/compute-stack';
 import { DataStack } from '../lib/data-stack';
+import { KnowledgeBaseStack } from '../lib/knowledge-base-stack';
 import { NetworkingStack } from '../lib/networking-stack';
 import { CONFIG } from '../lib/config';
 
@@ -13,6 +14,10 @@ const env = {
 };
 
 const networking = new NetworkingStack(app, 'FinsightNetworking', { env });
+const data = new DataStack(app, 'FinsightData', { env });
 
 new ComputeStack(app, 'FinsightCompute', { env, vpc: networking.vpc });
-new DataStack(app, 'FinsightData', { env });
+new KnowledgeBaseStack(app, 'FinsightKnowledgeBase', {
+  env,
+  documentBucket: data.documentsBucket,
+});

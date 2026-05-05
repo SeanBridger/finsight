@@ -15,4 +15,10 @@ export const CONFIG = {
   // Embedding dimensions — Titan v2 supports 256, 512, 1024
   // 1024 = best accuracy, 512 = 99% accuracy at half the storage
   embeddingDimensions: 1024,
+
+  // Pinecone vector store
+  pinecone: {
+    connectionString: 'https://finsight-n5h6494.svc.aped-4627-b74a.pinecone.io',
+    secretArn: 'arn:aws:secretsmanager:us-east-1:284394464353:secret:finsight/pinecone-api-key-QwTGrb',
+  },
 };
