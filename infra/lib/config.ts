@@ -2,6 +2,7 @@ export const CONFIG = {
   account: '284394464353',
   region: 'us-east-1',
   projectName: 'finsight',
+  knowledgeBaseId: 'KGISW1DO99',
 
   // Bedrock model identifiers
   // Newer models require inference profile IDs (us. prefix)

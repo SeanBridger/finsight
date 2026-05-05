@@ -18,23 +18,13 @@ export class KnowledgeBaseStack extends cdk.Stack {
 
     const { documentBucket } = props;
 
-    // -------------------------------------------------------
-    // 1. IAM Role for the Knowledge Base
-    // -------------------------------------------------------
-    // Bedrock Knowledge Bases needs a role it can assume to:
-    //   - Call the embedding model (Titan v2) to convert text → vectors
-    //   - Read documents from S3
-    //   - Read the Pinecone API key from Secrets Manager
-    //
-    // With L2 constructs this would be automatic. With L1 we build it ourselves.
-
+    // L1 constructs require us to wire the IAM role manually.
+    // L2 Knowledge Base constructs don't exist yet in @aws-cdk/aws-bedrock-alpha.
     const kbRole = new iam.Role(this, 'KnowledgeBaseRole', {
       roleName: `${CONFIG.projectName}-kb-role`,
       assumedBy: new iam.ServicePrincipal('bedrock.amazonaws.com'),
-      description: 'Role for Bedrock Knowledge Base to access embeddings, S3, and Pinecone',
     });
 
-    // Permission to call the embedding model
     kbRole.addToPolicy(new iam.PolicyStatement({
       effect: iam.Effect.ALLOW,
       actions: ['bedrock:InvokeModel'],
@@ -43,7 +33,6 @@ export class KnowledgeBaseStack extends cdk.Stack {
       ],
     }));
 
-    // Permission to read documents from our S3 bucket
     kbRole.addToPolicy(new iam.PolicyStatement({
       effect: iam.Effect.ALLOW,
       actions: ['s3:GetObject', 's3:ListBucket'],
@@ -53,33 +42,15 @@ export class KnowledgeBaseStack extends cdk.Stack {
       ],
     }));
 
-    // Permission to read the Pinecone API key from Secrets Manager
     kbRole.addToPolicy(new iam.PolicyStatement({
       effect: iam.Effect.ALLOW,
       actions: ['secretsmanager:GetSecretValue'],
-      resources: [
-        CONFIG.pinecone.secretArn,
-      ],
+      resources: [CONFIG.pinecone.secretArn],
     }));
-
-    // -------------------------------------------------------
-    // 2. The Knowledge Base itself (L1 construct)
-    // -------------------------------------------------------
-    // This tells Bedrock:
-    //   - Which embedding model to use (Titan v2, 1024 dims)
-    //   - Where to store vectors (Pinecone, with connection details)
-    //   - What role to assume when doing all this
-    //
-    // Internally, when you later trigger a "sync", Bedrock will:
-    //   1. Read each document from S3
-    //   2. Parse it (extract text from PDF — tables, headers, body)
-    //   3. Chunk the text according to your chunking strategy
-    //   4. Send each chunk to Titan v2 → get back a 1024-dim vector
-    //   5. Upsert vector + text + metadata into Pinecone
 
     const knowledgeBase = new bedrock.CfnKnowledgeBase(this, 'KnowledgeBase', {
       name: `${CONFIG.projectName}-kb`,
-      description: 'Investment analyst knowledge base — annual reports, earnings transcripts, regulatory filings',
+      description: 'Annual reports, earnings transcripts, and regulatory filings',
       roleArn: kbRole.roleArn,
 
       knowledgeBaseConfiguration: {
@@ -107,28 +78,13 @@ export class KnowledgeBaseStack extends cdk.Stack {
       },
     });
 
-    // Ensure the IAM policy is fully attached before Bedrock tries to use the role.
-    // Without this, CloudFormation may create them in parallel and Bedrock fails
-    // to read the Pinecone secret during validation.
+    // CloudFormation race condition: KB validates Pinecone credentials on creation,
+    // but the IAM policy may not have propagated yet. Force ordering.
     knowledgeBase.node.addDependency(kbRole);
-
-    // -------------------------------------------------------
-    // 3. Data Source — connects S3 bucket to the Knowledge Base
-    // -------------------------------------------------------
-    // This tells the Knowledge Base WHERE to find documents.
-    // The chunking strategy is configured here, not on the KB itself.
-    //
-    // We're using SEMANTIC chunking — instead of splitting every N tokens,
-    // it uses the embedding model to detect natural breakpoints in the text.
-    // This keeps related content together (e.g., a full table row, a complete
-    // paragraph about risk factors) rather than cutting mid-sentence.
-    //
-    // For financial documents this matters: you don't want a balance sheet
-    // table split across two chunks — the numbers lose context.
 
     const dataSource = new bedrock.CfnDataSource(this, 'S3DataSource', {
       name: `${CONFIG.projectName}-reports`,
-      description: 'Annual reports, earnings transcripts, and regulatory filings from S3',
+      description: 'S3 data source for financial documents',
       knowledgeBaseId: knowledgeBase.attrKnowledgeBaseId,
 
       dataSourceConfiguration: {
@@ -139,6 +95,9 @@ export class KnowledgeBaseStack extends cdk.Stack {
         },
       },
 
+      // Fixed-size chunking at 512 tokens with 15% overlap.
+      // Semantic chunking would be better for financial tables but
+      // added ~3x ingestion cost in testing — revisit in Phase 4.
       vectorIngestionConfiguration: {
         chunkingConfiguration: {
           chunkingStrategy: 'FIXED_SIZE',
@@ -150,21 +109,15 @@ export class KnowledgeBaseStack extends cdk.Stack {
       },
     });
 
-    // -------------------------------------------------------
-    // 4. Outputs — we'll need these IDs in the backend
-    // -------------------------------------------------------
-
     this.knowledgeBaseId = knowledgeBase.attrKnowledgeBaseId;
     this.dataSourceId = dataSource.attrDataSourceId;
 
     new cdk.CfnOutput(this, 'KnowledgeBaseId', {
       value: knowledgeBase.attrKnowledgeBaseId,
-      description: 'Bedrock Knowledge Base ID',
     });
 
     new cdk.CfnOutput(this, 'DataSourceId', {
       value: dataSource.attrDataSourceId,
-      description: 'Knowledge Base Data Source ID',
     });
   }
 }

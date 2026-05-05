@@ -4,7 +4,6 @@ import { Construct } from 'constructs';
 import { CONFIG } from './config';
 
 export class NetworkingStack extends cdk.Stack {
-  // Expose the VPC so other stacks can reference it
   public readonly vpc: ec2.Vpc;
 
   constructor(scope: Construct, id: string, props?: cdk.StackProps) {

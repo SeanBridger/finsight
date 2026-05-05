@@ -17,11 +17,20 @@ export class ComputeStack extends cdk.Stack {
 
     const { vpc } = props;
 
-    // PrivateLink endpoints — created in compute stack so they're torn down with Fargate
-    // These allow private subnet resources to reach AWS services without internet
+    // PrivateLink endpoints — torn down with Fargate to save costs
     new ec2.InterfaceVpcEndpoint(this, 'BedrockRuntimeEndpoint', {
       vpc,
       service: ec2.InterfaceVpcEndpointAwsService.BEDROCK_RUNTIME,
+      privateDnsEnabled: true,
+      subnets: { subnetType: ec2.SubnetType.PRIVATE_ISOLATED },
+    });
+
+    // Knowledge Base retrieval is a separate service from model inference
+    new ec2.InterfaceVpcEndpoint(this, 'BedrockAgentRuntimeEndpoint', {
+      vpc,
+      service: new ec2.InterfaceVpcEndpointService(
+        `com.amazonaws.${CONFIG.region}.bedrock-agent-runtime`, 443
+      ),
       privateDnsEnabled: true,
       subnets: { subnetType: ec2.SubnetType.PRIVATE_ISOLATED },
     });
@@ -47,33 +56,45 @@ export class ComputeStack extends cdk.Stack {
       subnets: { subnetType: ec2.SubnetType.PRIVATE_ISOLATED },
     });
 
-    // ECS Cluster
     const cluster = new ecs.Cluster(this, 'Cluster', {
       clusterName: `${CONFIG.projectName}-cluster`,
       vpc,
     });
 
-    // IAM role for the Fargate task — scoped to Bedrock invoke only
     const taskRole = new iam.Role(this, 'TaskRole', {
       roleName: `${CONFIG.projectName}-task-role`,
       assumedBy: new iam.ServicePrincipal('ecs-tasks.amazonaws.com'),
     });
 
-    // Scoped to invoke actions only; resource wildcard needed for inference profile ARN format
+    // Model inference — scoped to specific models
     taskRole.addToPolicy(new iam.PolicyStatement({
       effect: iam.Effect.ALLOW,
       actions: ['bedrock:InvokeModel', 'bedrock:InvokeModelWithResponseStream'],
-      resources: ['*'],
+      resources: [
+        `arn:aws:bedrock:${CONFIG.region}::foundation-model/${CONFIG.models.embeddings}`,
+        `arn:aws:bedrock:${CONFIG.region}:${CONFIG.account}:inference-profile/${CONFIG.models.chat}`,
+        `arn:aws:bedrock:${CONFIG.region}:${CONFIG.account}:inference-profile/${CONFIG.models.chatCheap}`,
+        // Cross-region inference profiles can route to any US region
+        'arn:aws:bedrock:*::foundation-model/anthropic.claude-sonnet-4-6',
+        'arn:aws:bedrock:*::foundation-model/anthropic.claude-haiku-4-5-20251001-v1:0',
+      ],
     }));
 
-    // Task definition — 0.25 vCPU, 0.5 GB RAM (smallest Fargate size)
+    // Knowledge Base retrieval — scoped to our specific KB
+    taskRole.addToPolicy(new iam.PolicyStatement({
+      effect: iam.Effect.ALLOW,
+      actions: ['bedrock:Retrieve'],
+      resources: [
+        `arn:aws:bedrock:${CONFIG.region}:${CONFIG.account}:knowledge-base/${CONFIG.knowledgeBaseId}`,
+      ],
+    }));
+
     const taskDef = new ecs.FargateTaskDefinition(this, 'TaskDef', {
       memoryLimitMiB: 512,
       cpu: 256,
       taskRole,
     });
 
-    // Build Docker image from backend/ directory and add as container
     taskDef.addContainer('BackendContainer', {
       image: ecs.ContainerImage.fromAsset('../backend'),
       logging: ecs.LogDrivers.awsLogs({
@@ -86,14 +107,12 @@ export class ComputeStack extends cdk.Stack {
       portMappings: [{ containerPort: 8000 }],
     });
 
-    // Application Load Balancer — the only public-facing resource
     const alb = new elbv2.ApplicationLoadBalancer(this, 'Alb', {
       loadBalancerName: `${CONFIG.projectName}-alb`,
       vpc,
       internetFacing: true,
     });
 
-    // Fargate service — runs in private subnets, no public IP
     const service = new ecs.FargateService(this, 'Service', {
       serviceName: `${CONFIG.projectName}-service`,
       cluster,
@@ -104,7 +123,6 @@ export class ComputeStack extends cdk.Stack {
       minHealthyPercent: 0,
     });
 
-    // ALB listener forwards HTTP traffic to the Fargate service
     const listener = alb.addListener('HttpListener', {
       port: 80,
       protocol: elbv2.ApplicationProtocol.HTTP,
@@ -121,7 +139,6 @@ export class ComputeStack extends cdk.Stack {
       },
     });
 
-    // Output the ALB URL so we can test
     new cdk.CfnOutput(this, 'AlbUrl', {
       value: `http://${alb.loadBalancerDnsName}`,
       description: 'Backend ALB URL',
