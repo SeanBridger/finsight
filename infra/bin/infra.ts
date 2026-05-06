@@ -21,6 +21,7 @@ const compute = new ComputeStack(app, 'FinsightCompute', {
   vpc: networking.vpc,
   documentsBucket: data.documentsBucket,
   documentMetadataTable: data.documentMetadataTable,
+  chatHistoryTable: data.chatHistoryTable,
 });
 
 new KnowledgeBaseStack(app, 'FinsightKnowledgeBase', {

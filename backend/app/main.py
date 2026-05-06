@@ -10,6 +10,7 @@ from app.documents import (
     list_documents,
     sync_knowledge_base,
 )
+from app.sessions import get_session, list_sessions, save_session
 
 app = FastAPI(title="FinSight API", version="0.1.0")
 
@@ -61,6 +62,12 @@ class UploadRequest(BaseModel):
 
 class ConfirmUploadRequest(BaseModel):
     document_id: str
+
+
+class SaveSessionRequest(BaseModel):
+    session_id: str
+    messages: list[dict]
+    title: str | None = None
 
 
 @app.get("/health")
@@ -117,3 +124,28 @@ async def confirm_upload_endpoint(request: ConfirmUploadRequest):
 async def sync_endpoint():
     """Trigger Knowledge Base ingestion sync."""
     return sync_knowledge_base()
+
+
+@app.get("/sessions/list")
+async def list_sessions_endpoint():
+    """List all chat sessions."""
+    return {"sessions": list_sessions()}
+
+
+@app.get("/sessions/{session_id}")
+async def get_session_endpoint(session_id: str):
+    """Load a chat session with all messages."""
+    session = get_session(session_id)
+    if not session:
+        return {"error": "Session not found"}
+    return session
+
+
+@app.post("/sessions/save")
+async def save_session_endpoint(request: SaveSessionRequest):
+    """Save or update a chat session."""
+    return save_session(
+        session_id=request.session_id,
+        messages=request.messages,
+        title=request.title,
+    )

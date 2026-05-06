@@ -6,99 +6,142 @@ const API_URL = import.meta.env.VITE_API_URL || "";
 export function useResearchStream() {
   const [messages, setMessages] = useState<Message[]>([]);
   const [isStreaming, setIsStreaming] = useState(false);
+  const [sessionId, setSessionId] = useState<string>(() => crypto.randomUUID());
+  const [saveCount, setSaveCount] = useState(0);
   const abortRef = useRef<AbortController | null>(null);
 
-  const send = useCallback(async (question: string) => {
-    const userMsg: Message = {
-      id: crypto.randomUUID(),
-      role: "user",
-      content: question,
-    };
-
-    const assistantId = crypto.randomUUID();
-    const assistantMsg: Message = {
-      id: assistantId,
-      role: "assistant",
-      content: "",
-      isStreaming: true,
-    };
-
-    setMessages((prev) => [...prev, userMsg, assistantMsg]);
-    setIsStreaming(true);
-
-    abortRef.current = new AbortController();
-
-    try {
-      const res = await fetch(`${API_URL}/research/stream`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ message: question }),
-        signal: abortRef.current.signal,
-      });
-
-      if (!res.ok || !res.body) {
-        throw new Error(`HTTP ${res.status}`);
+  const saveSession = useCallback(
+    async (msgs: Message[]) => {
+      try {
+        await fetch(`${API_URL}/sessions/save`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            session_id: sessionId,
+            messages: msgs.map((m) => ({
+              id: m.id,
+              role: m.role,
+              content: m.content,
+              citations: m.citations,
+              isGrounded: m.isGrounded,
+              tokenUsage: m.tokenUsage,
+            })),
+          }),
+        });
+        setSaveCount((c) => c + 1);
+      } catch {
+        // Silent fail
       }
+    },
+    [sessionId],
+  );
 
-      const reader = res.body.getReader();
-      const decoder = new TextDecoder();
-      let buffer = "";
+  const send = useCallback(
+    async (question: string) => {
+      const userMsg: Message = {
+        id: crypto.randomUUID(),
+        role: "user",
+        content: question,
+      };
 
-      while (true) {
-        const { done, value } = await reader.read();
-        if (done) break;
+      const assistantId = crypto.randomUUID();
+      const assistantMsg: Message = {
+        id: assistantId,
+        role: "assistant",
+        content: "",
+        isStreaming: true,
+      };
 
-        buffer += decoder.decode(value, { stream: true });
-        const lines = buffer.split("\n");
-        buffer = lines.pop() || "";
+      setMessages((prev) => [...prev, userMsg, assistantMsg]);
+      setIsStreaming(true);
 
-        for (const line of lines) {
-          if (!line.startsWith("data: ")) continue;
-          const json = line.slice(6).trim();
-          if (!json) continue;
+      abortRef.current = new AbortController();
 
-          const event: SSEEvent = JSON.parse(json);
+      try {
+        const res = await fetch(`${API_URL}/research/stream`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ message: question }),
+          signal: abortRef.current.signal,
+        });
 
-          setMessages((prev) =>
-            prev.map((m) => {
-              if (m.id !== assistantId) return m;
-
-              switch (event.type) {
-                case "citations":
-                  return {
-                    ...m,
-                    citations: event.citations,
-                    isGrounded: event.is_grounded,
-                  };
-                case "delta":
-                  return { ...m, content: m.content + event.text };
-                case "done":
-                  return {
-                    ...m,
-                    tokenUsage: event.token_usage,
-                    isStreaming: false,
-                  };
-                default:
-                  return m;
-              }
-            }),
-          );
+        if (!res.ok || !res.body) {
+          throw new Error(`HTTP ${res.status}`);
         }
-      }
-    } catch (err) {
-      if (err instanceof DOMException && err.name === "AbortError") return;
 
-      setMessages((prev) =>
-        prev.map((m) =>
-          m.id === assistantId
-            ? { ...m, content: "Something went wrong. Please try again.", isStreaming: false }
-            : m,
-        ),
-      );
-    } finally {
-      setIsStreaming(false);
-    }
-  }, []);
+        const reader = res.body.getReader();
+        const decoder = new TextDecoder();
+        let buffer = "";
+        let finalMessages: Message[] = [];
+
+        while (true) {
+          const { done, value } = await reader.read();
+          if (done) break;
+
+          buffer += decoder.decode(value, { stream: true });
+          const lines = buffer.split("\n");
+          buffer = lines.pop() || "";
+
+          for (const line of lines) {
+            if (!line.startsWith("data: ")) continue;
+            const json = line.slice(6).trim();
+            if (!json) continue;
+
+            const event: SSEEvent = JSON.parse(json);
+
+            setMessages((prev) => {
+              const updated = prev.map((m) => {
+                if (m.id !== assistantId) return m;
+
+                switch (event.type) {
+                  case "citations":
+                    return {
+                      ...m,
+                      citations: event.citations,
+                      isGrounded: event.is_grounded,
+                    };
+                  case "delta":
+                    return { ...m, content: m.content + event.text };
+                  case "done":
+                    return {
+                      ...m,
+                      tokenUsage: event.token_usage,
+                      isStreaming: false,
+                    };
+                  default:
+                    return m;
+                }
+              });
+              finalMessages = updated;
+              return updated;
+            });
+          }
+        }
+
+        // Auto-save after streaming completes
+        if (finalMessages.length > 0) {
+          void saveSession(finalMessages);
+        }
+      } catch (err) {
+        if (err instanceof DOMException && err.name === "AbortError") return;
+
+        setMessages((prev) =>
+          prev.map((m) =>
+            m.id === assistantId
+              ? {
+                  ...m,
+                  content: "Something went wrong. Please try again.",
+                  isStreaming: false,
+                }
+              : m,
+          ),
+        );
+      } finally {
+        setIsStreaming(false);
+      }
+    },
+    [saveSession],
+  );
 
   const stop = useCallback(() => {
     abortRef.current?.abort();
@@ -106,5 +149,32 @@ export function useResearchStream() {
     setMessages((prev) => prev.map((m) => (m.isStreaming ? { ...m, isStreaming: false } : m)));
   }, []);
 
-  return { messages, isStreaming, send, stop };
+  const loadSession = useCallback(async (id: string) => {
+    try {
+      const res = await fetch(`${API_URL}/sessions/${id}`);
+      const data = await res.json();
+      if (data.messages) {
+        setSessionId(id);
+        setMessages(data.messages);
+      }
+    } catch {
+      console.error("Failed to load session");
+    }
+  }, []);
+
+  const newSession = useCallback(() => {
+    setSessionId(crypto.randomUUID());
+    setMessages([]);
+  }, []);
+
+  return {
+    messages,
+    isStreaming,
+    sessionId,
+    saveCount,
+    send,
+    stop,
+    loadSession,
+    newSession,
+  };
 }

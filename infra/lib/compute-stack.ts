@@ -14,6 +14,7 @@ interface ComputeStackProps extends cdk.StackProps {
   vpc: ec2.Vpc;
   documentsBucket: s3.IBucket;
   documentMetadataTable: dynamodb.ITable;
+  chatHistoryTable: dynamodb.ITable;
 }
 
 export class ComputeStack extends cdk.Stack {
@@ -22,7 +23,7 @@ export class ComputeStack extends cdk.Stack {
   constructor(scope: Construct, id: string, props: ComputeStackProps) {
     super(scope, id, props);
 
-    const { vpc, documentsBucket, documentMetadataTable } = props;
+    const { vpc, documentsBucket, documentMetadataTable, chatHistoryTable } = props;
 
     // PrivateLink endpoints — torn down with Fargate to save costs
     new ec2.InterfaceVpcEndpoint(this, 'BedrockRuntimeEndpoint', {
@@ -123,6 +124,7 @@ export class ComputeStack extends cdk.Stack {
 
     // DynamoDB — document metadata CRUD
     documentMetadataTable.grantReadWriteData(taskRole);
+    chatHistoryTable.grantReadWriteData(taskRole);
 
     // Lambda for KB sync — runs outside VPC so Bedrock can validate Pinecone
     const syncFunction = new lambda.Function(this, 'SyncFunction', {
@@ -188,6 +190,7 @@ def handler(event, context):
         AWS_DEFAULT_REGION: CONFIG.region,
         DOCUMENTS_BUCKET: documentsBucket.bucketName,
         DOCUMENT_METADATA_TABLE: documentMetadataTable.tableName,
+        CHAT_HISTORY_TABLE: chatHistoryTable.tableName,
         KNOWLEDGE_BASE_ID: CONFIG.knowledgeBaseId,
         DATA_SOURCE_ID: 'RI9JEO7YN7',
         SYNC_FUNCTION_NAME: syncFunction.functionName,
