@@ -146,7 +146,12 @@ def research_query(question: str) -> dict:
     return {
         "answer": response["output"]["message"]["content"][0]["text"],
         "citations": [
-            {"source": c["source"], "s3_uri": c["s3_uri"], "relevance_score": round(c["score"], 3)}
+            {
+                "source": c["source"],
+                "s3_uri": c["s3_uri"],
+                "relevance_score": round(c["score"], 3),
+                "text": c["content"],
+            }
             for c in chunks
         ],
         "chunk_count": len(chunks),
@@ -177,7 +182,12 @@ def research_query_stream(question: str):
         context = "No relevant documents were found for this query."
 
     citations = [
-        {"source": c["source"], "s3_uri": c["s3_uri"], "relevance_score": round(c["score"], 3)}
+        {
+            "source": c["source"],
+            "s3_uri": c["s3_uri"],
+            "relevance_score": round(c["score"], 3),
+            "text": c["content"],
+        }
         for c in chunks
     ]
 
