@@ -1,7 +1,8 @@
 from fastapi import FastAPI
+from fastapi.responses import StreamingResponse
 from pydantic import BaseModel
 
-from app.bedrock import chat, research_query
+from app.bedrock import chat, research_query, research_query_stream
 
 app = FastAPI(title="FinSight API", version="0.1.0")
 
@@ -48,3 +49,13 @@ async def chat_endpoint(request: ChatRequest):
 async def research_endpoint(request: ChatRequest):
     """RAG-powered research against the document corpus."""
     return ResearchResponse(**research_query(request.message))
+
+
+@app.post("/research/stream")
+async def research_stream_endpoint(request: ChatRequest):
+    """Streaming RAG research — tokens sent as Server-Sent Events."""
+    return StreamingResponse(
+        research_query_stream(request.message),
+        media_type="text/event-stream",
+        headers={"Cache-Control": "no-cache", "X-Accel-Buffering": "no"},
+    )

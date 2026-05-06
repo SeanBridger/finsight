@@ -158,6 +158,92 @@ def research_query(question: str) -> dict:
     }
 
 
+def research_query_stream(question: str):
+    """Streaming variant of research_query. Yields SSE-formatted events.
+
+    Retrieval happens upfront (not streamed), then Claude's response
+    streams token-by-token via ConverseStream.
+    """
+    chunks = _retrieve(question)
+
+    if chunks:
+        context_lines = []
+        for i, c in enumerate(chunks, 1):
+            context_lines.append(
+                f"--- Source {i}: {c['source']} (relevance: {c['score']:.2f}) ---\n{c['content']}"
+            )
+        context = "\n\n".join(context_lines)
+    else:
+        context = "No relevant documents were found for this query."
+
+    citations = [
+        {"source": c["source"], "s3_uri": c["s3_uri"], "relevance_score": round(c["score"], 3)}
+        for c in chunks
+    ]
+
+    # Send citations first so the frontend can render the source panel
+    # before the answer starts streaming
+    citations_event = json.dumps(
+        {
+            "type": "citations",
+            "citations": citations,
+            "is_grounded": bool(chunks),
+        }
+    )
+    yield f"data: {citations_event}\n\n"
+
+    try:
+        response = bedrock.converse_stream(
+            modelId=config.chat_model,
+            system=[{"text": ANALYST_PERSONA}],
+            messages=[
+                {
+                    "role": "user",
+                    "content": [
+                        {
+                            "text": (
+                                "Based on the following documents, answer the "
+                                "analyst's question.\n\n"
+                                f"RETRIEVED DOCUMENTS:\n{context}\n\n"
+                                f"ANALYST'S QUESTION:\n{question}"
+                            )
+                        }
+                    ],
+                }
+            ],
+            inferenceConfig={
+                "maxTokens": 2048,
+                "temperature": 0.1,
+            },
+        )
+    except Exception:
+        logger.exception("ConverseStream call failed")
+        yield f"data: {json.dumps({'type': 'error', 'message': 'Failed to generate response'})}\n\n"
+        return
+
+    # ConverseStream returns an event stream with different event types:
+    #   contentBlockDelta — the actual text tokens
+    #   metadata — token usage stats (arrives at the end)
+    for event in response["stream"]:
+        if "contentBlockDelta" in event:
+            text = event["contentBlockDelta"]["delta"].get("text", "")
+            if text:
+                yield f"data: {json.dumps({'type': 'delta', 'text': text})}\n\n"
+
+        elif "metadata" in event:
+            usage = event["metadata"].get("usage", {})
+            done_event = json.dumps(
+                {
+                    "type": "done",
+                    "token_usage": {
+                        "input": usage.get("inputTokens", 0),
+                        "output": usage.get("outputTokens", 0),
+                    },
+                }
+            )
+            yield f"data: {done_event}\n\n"
+
+
 def chat(message: str) -> str:
     """Direct Claude call without RAG — used for non-research queries."""
     body = json.dumps(
