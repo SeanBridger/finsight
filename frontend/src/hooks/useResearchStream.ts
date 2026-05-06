@@ -1,7 +1,7 @@
 import { useCallback, useRef, useState } from "react";
 import type { Message, SSEEvent } from "../types/research";
 
-const API_URL = import.meta.env.VITE_API_URL || "http://localhost:8000";
+const API_URL = import.meta.env.VITE_API_URL || "";
 
 export function useResearchStream() {
   const [messages, setMessages] = useState<Message[]>([]);

@@ -49,7 +49,7 @@ export function CitationPanel({ citations, isGrounded, onCitationClick }: Props)
             </svg>
             <span className="text-xs text-gray-600">{name}</span>
           </div>
-          <div className="flex gap-1.5 ml-[18px]">
+          <div className="flex gap-1.5 ml-4.5">
             {chunks.map((c, i) => (
               <button
                 key={i}
