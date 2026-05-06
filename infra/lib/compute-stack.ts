@@ -1,21 +1,28 @@
 import * as cdk from 'aws-cdk-lib/core';
+import * as dynamodb from 'aws-cdk-lib/aws-dynamodb';
 import * as ec2 from 'aws-cdk-lib/aws-ec2';
 import * as ecs from 'aws-cdk-lib/aws-ecs';
 import * as elbv2 from 'aws-cdk-lib/aws-elasticloadbalancingv2';
 import * as iam from 'aws-cdk-lib/aws-iam';
+import * as lambda from 'aws-cdk-lib/aws-lambda';
 import * as logs from 'aws-cdk-lib/aws-logs';
+import * as s3 from 'aws-cdk-lib/aws-s3';
 import { Construct } from 'constructs';
 import { CONFIG } from './config';
 
 interface ComputeStackProps extends cdk.StackProps {
   vpc: ec2.Vpc;
+  documentsBucket: s3.IBucket;
+  documentMetadataTable: dynamodb.ITable;
 }
 
 export class ComputeStack extends cdk.Stack {
+  public readonly albDnsName: string;
+
   constructor(scope: Construct, id: string, props: ComputeStackProps) {
     super(scope, id, props);
 
-    const { vpc } = props;
+    const { vpc, documentsBucket, documentMetadataTable } = props;
 
     // PrivateLink endpoints — torn down with Fargate to save costs
     new ec2.InterfaceVpcEndpoint(this, 'BedrockRuntimeEndpoint', {
@@ -30,6 +37,16 @@ export class ComputeStack extends cdk.Stack {
       vpc,
       service: new ec2.InterfaceVpcEndpointService(
         `com.amazonaws.${CONFIG.region}.bedrock-agent-runtime`, 443
+      ),
+      privateDnsEnabled: true,
+      subnets: { subnetType: ec2.SubnetType.PRIVATE_ISOLATED },
+    });
+
+    // Bedrock Agent control plane — needed for StartIngestionJob
+    new ec2.InterfaceVpcEndpoint(this, 'BedrockAgentEndpoint', {
+      vpc,
+      service: new ec2.InterfaceVpcEndpointService(
+        `com.amazonaws.${CONFIG.region}.bedrock-agent`, 443
       ),
       privateDnsEnabled: true,
       subnets: { subnetType: ec2.SubnetType.PRIVATE_ISOLATED },
@@ -52,6 +69,14 @@ export class ComputeStack extends cdk.Stack {
     new ec2.InterfaceVpcEndpoint(this, 'CloudWatchLogsEndpoint', {
       vpc,
       service: ec2.InterfaceVpcEndpointAwsService.CLOUDWATCH_LOGS,
+      privateDnsEnabled: true,
+      subnets: { subnetType: ec2.SubnetType.PRIVATE_ISOLATED },
+    });
+
+    // Lambda PrivateLink — so Fargate can invoke the sync function
+    new ec2.InterfaceVpcEndpoint(this, 'LambdaEndpoint', {
+      vpc,
+      service: ec2.InterfaceVpcEndpointAwsService.LAMBDA,
       privateDnsEnabled: true,
       subnets: { subnetType: ec2.SubnetType.PRIVATE_ISOLATED },
     });
@@ -89,6 +114,64 @@ export class ComputeStack extends cdk.Stack {
       ],
     }));
 
+    // S3 — presigned upload/download URLs
+    taskRole.addToPolicy(new iam.PolicyStatement({
+      effect: iam.Effect.ALLOW,
+      actions: ['s3:PutObject', 's3:GetObject'],
+      resources: [`${documentsBucket.bucketArn}/documents/*`],
+    }));
+
+    // DynamoDB — document metadata CRUD
+    documentMetadataTable.grantReadWriteData(taskRole);
+
+    // Lambda for KB sync — runs outside VPC so Bedrock can validate Pinecone
+    const syncFunction = new lambda.Function(this, 'SyncFunction', {
+      functionName: `${CONFIG.projectName}-kb-sync`,
+      runtime: lambda.Runtime.PYTHON_3_12,
+      handler: 'index.handler',
+      code: lambda.Code.fromInline(`
+import boto3
+import json
+
+bedrock_agent = boto3.client('bedrock-agent')
+
+def handler(event, context):
+    try:
+        response = bedrock_agent.start_ingestion_job(
+            knowledgeBaseId=event['knowledge_base_id'],
+            dataSourceId=event['data_source_id'],
+            description=event.get('description', 'Sync from FinSight'),
+        )
+        job = response['ingestionJob']
+        return {
+            'statusCode': 200,
+            'body': json.dumps({
+                'ingestion_job_id': job['ingestionJobId'],
+                'status': job['status'],
+            }),
+        }
+    except Exception as e:
+        return {
+            'statusCode': 500,
+            'body': json.dumps({'error': str(e)}),
+        }
+`),
+      timeout: cdk.Duration.seconds(30),
+    });
+
+    syncFunction.addToRolePolicy(new iam.PolicyStatement({
+      effect: iam.Effect.ALLOW,
+      actions: [
+        'bedrock:StartIngestionJob',
+        'bedrock:AssociateThirdPartyKnowledgeBase',
+      ],
+      resources: [
+        `arn:aws:bedrock:${CONFIG.region}:${CONFIG.account}:knowledge-base/${CONFIG.knowledgeBaseId}`,
+      ],
+    }));
+
+    syncFunction.grantInvoke(taskRole);
+
     const taskDef = new ecs.FargateTaskDefinition(this, 'TaskDef', {
       memoryLimitMiB: 512,
       cpu: 256,
@@ -103,6 +186,11 @@ export class ComputeStack extends cdk.Stack {
       }),
       environment: {
         AWS_DEFAULT_REGION: CONFIG.region,
+        DOCUMENTS_BUCKET: documentsBucket.bucketName,
+        DOCUMENT_METADATA_TABLE: documentMetadataTable.tableName,
+        KNOWLEDGE_BASE_ID: CONFIG.knowledgeBaseId,
+        DATA_SOURCE_ID: 'RI9JEO7YN7',
+        SYNC_FUNCTION_NAME: syncFunction.functionName,
       },
       portMappings: [{ containerPort: 8000 }],
     });
@@ -112,6 +200,8 @@ export class ComputeStack extends cdk.Stack {
       vpc,
       internetFacing: true,
     });
+
+    this.albDnsName = alb.loadBalancerDnsName;
 
     const service = new ecs.FargateService(this, 'Service', {
       serviceName: `${CONFIG.projectName}-service`,

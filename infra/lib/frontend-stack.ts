@@ -27,7 +27,7 @@ export class FrontendStack extends cdk.Stack {
 
     // API origin — ALB serving the FastAPI backend
     const apiOrigin = new origins.HttpOrigin(
-      props?.albDnsName ?? `${CONFIG.projectName}-alb-149104046.us-east-1.elb.amazonaws.com`,
+      props?.albDnsName ?? 'placeholder.example.com',
       {
         protocolPolicy: cloudfront.OriginProtocolPolicy.HTTP_ONLY,
       }
@@ -57,6 +57,13 @@ export class FrontendStack extends cdk.Stack {
           allowedMethods: cloudfront.AllowedMethods.ALLOW_ALL,
         },
         '/health': {
+          origin: apiOrigin,
+          viewerProtocolPolicy: cloudfront.ViewerProtocolPolicy.REDIRECT_TO_HTTPS,
+          cachePolicy: cloudfront.CachePolicy.CACHING_DISABLED,
+          originRequestPolicy: cloudfront.OriginRequestPolicy.ALL_VIEWER,
+          allowedMethods: cloudfront.AllowedMethods.ALLOW_ALL,
+        },
+        '/documents/*': {
           origin: apiOrigin,
           viewerProtocolPolicy: cloudfront.ViewerProtocolPolicy.REDIRECT_TO_HTTPS,
           cachePolicy: cloudfront.CachePolicy.CACHING_DISABLED,

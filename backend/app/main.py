@@ -4,6 +4,12 @@ from fastapi.responses import StreamingResponse
 from pydantic import BaseModel
 
 from app.bedrock import chat, research_query, research_query_stream
+from app.documents import (
+    confirm_upload,
+    create_upload_url,
+    list_documents,
+    sync_knowledge_base,
+)
 
 app = FastAPI(title="FinSight API", version="0.1.0")
 
@@ -46,6 +52,17 @@ class ResearchResponse(BaseModel):
     token_usage: TokenUsage | None = None
 
 
+class UploadRequest(BaseModel):
+    filename: str
+    company: str
+    doc_type: str
+    period: str
+
+
+class ConfirmUploadRequest(BaseModel):
+    document_id: str
+
+
 @app.get("/health")
 async def health():
     return {"status": "healthy"}
@@ -71,3 +88,32 @@ async def research_stream_endpoint(request: ChatRequest):
         media_type="text/event-stream",
         headers={"Cache-Control": "no-cache", "X-Accel-Buffering": "no"},
     )
+
+
+@app.get("/documents/list")
+async def list_documents_endpoint():
+    """List all documents in the corpus."""
+    return {"documents": list_documents()}
+
+
+@app.post("/documents/upload")
+async def upload_document_endpoint(request: UploadRequest):
+    """Generate a presigned URL for direct S3 upload."""
+    return create_upload_url(
+        filename=request.filename,
+        company=request.company,
+        doc_type=request.doc_type,
+        period=request.period,
+    )
+
+
+@app.post("/documents/confirm")
+async def confirm_upload_endpoint(request: ConfirmUploadRequest):
+    """Confirm a document upload completed successfully."""
+    return confirm_upload(request.document_id)
+
+
+@app.post("/documents/sync")
+async def sync_endpoint():
+    """Trigger Knowledge Base ingestion sync."""
+    return sync_knowledge_base()

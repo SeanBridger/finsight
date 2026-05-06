@@ -14,12 +14,23 @@ export class DataStack extends cdk.Stack {
 
     this.documentsBucket = new s3.Bucket(this, 'DocumentsBucket', {
       bucketName: `${CONFIG.projectName}-documents-${CONFIG.account}`,
-      // SSE-S3 for portfolio scale; production would use CMK for key rotation and cross-account control
       encryption: s3.BucketEncryption.S3_MANAGED,
       blockPublicAccess: s3.BlockPublicAccess.BLOCK_ALL,
       versioned: true,
       enforceSSL: true,
       removalPolicy: cdk.RemovalPolicy.RETAIN,
+      cors: [
+        {
+          allowedMethods: [s3.HttpMethods.PUT, s3.HttpMethods.POST],
+          allowedOrigins: [
+            'https://di3wfr20hx7a2.cloudfront.net',
+            'http://localhost:5173',
+          ],
+          allowedHeaders: ['*'],
+          exposedHeaders: ['ETag'],
+          maxAge: 300,
+        },
+      ],
     });
 
     this.documentMetadataTable = new dynamodb.Table(this, 'DocumentMetadataTable', {
@@ -28,6 +39,13 @@ export class DataStack extends cdk.Stack {
       billingMode: dynamodb.BillingMode.PAY_PER_REQUEST,
       pointInTimeRecoverySpecification: { pointInTimeRecoveryEnabled: true },
       removalPolicy: cdk.RemovalPolicy.RETAIN,
+    });
+
+    this.documentMetadataTable.addGlobalSecondaryIndex({
+      indexName: 'all-documents',
+      partitionKey: { name: 'gsi1pk', type: dynamodb.AttributeType.STRING },
+      sortKey: { name: 'uploadedAt', type: dynamodb.AttributeType.STRING },
+      projectionType: dynamodb.ProjectionType.ALL,
     });
 
     this.chatHistoryTable = new dynamodb.Table(this, 'ChatHistoryTable', {

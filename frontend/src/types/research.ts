@@ -35,3 +35,14 @@ export interface Message {
   tokenUsage?: { input: number; output: number };
   isStreaming?: boolean;
 }
+
+export interface Document {
+  documentId: string;
+  filename: string;
+  s3Key: string;
+  company: string;
+  docType: string;
+  period: string;
+  status: "uploading" | "uploaded" | "ingesting" | "ready" | "failed";
+  uploadedAt: string;
+}

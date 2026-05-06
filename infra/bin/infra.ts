@@ -16,10 +16,18 @@ const env = {
 
 const networking = new NetworkingStack(app, 'FinsightNetworking', { env });
 const data = new DataStack(app, 'FinsightData', { env });
+const compute = new ComputeStack(app, 'FinsightCompute', {
+  env,
+  vpc: networking.vpc,
+  documentsBucket: data.documentsBucket,
+  documentMetadataTable: data.documentMetadataTable,
+});
 
-new ComputeStack(app, 'FinsightCompute', { env, vpc: networking.vpc });
 new KnowledgeBaseStack(app, 'FinsightKnowledgeBase', {
   env,
   documentBucket: data.documentsBucket,
 });
-new FrontendStack(app, 'FinsightFrontend', { env });
+new FrontendStack(app, 'FinsightFrontend', {
+  env,
+  albDnsName: compute.albDnsName,
+});

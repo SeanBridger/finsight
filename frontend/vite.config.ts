@@ -7,4 +7,12 @@ export default defineConfig({
     react(),
     tailwindcss(),
   ],
+  server: {
+    proxy: {
+      '/documents/': 'http://localhost:8000',
+      '/research': 'http://localhost:8000',
+      '/chat': 'http://localhost:8000',
+      '/health': 'http://localhost:8000',
+    },
+  },
 })
