@@ -9,9 +9,15 @@ const TOOL_LABELS: Record<string, string> = {
   get_filing_metadata: "Checking available filings",
   extract_metric: "Extracting metric",
   get_section: "Reading section",
+  calculate: "Calculating",
 };
 
 function formatToolInput(input: Record<string, string>): string {
+  if (input.operation) {
+    return [input.label, `${input.a} ${input.operation} ${input.b}`]
+      .filter(Boolean)
+      .join(" — ");
+  }
   const parts = [
     input.company,
     input.metric_name,

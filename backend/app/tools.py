@@ -1,11 +1,24 @@
 """Tool definitions and execution handlers for the FinSight agent."""
 
 import logging
+import operator
 
 from app.bedrock import _retrieve
 from app.documents import list_documents
 
 logger = logging.getLogger(__name__)
+
+# Whitelisted operations for the calculate tool.
+# No eval(), no arbitrary code — just safe arithmetic.
+_OPS = {
+    "add": operator.add,
+    "subtract": operator.sub,
+    "multiply": operator.mul,
+    "divide": operator.truediv,
+    "percentage_change": lambda old, new: ((new - old) / old) * 100,
+    "percentage_of": lambda part, whole: (part / whole) * 100,
+    "difference": lambda a, b: a - b,
+}
 
 TOOL_SPECS = [
     {
@@ -117,14 +130,59 @@ TOOL_SPECS = [
                     "properties": {
                         "section_name": {
                             "type": "string",
-                            "description": "The section to retrieve, e.g. 'Risk Factors'.",
+                            "description": ("The section to retrieve, e.g. 'Risk Factors'."),
                         },
                         "company": {
                             "type": "string",
-                            "description": "The company whose filing to search.",
+                            "description": ("The company whose filing to search."),
                         },
                     },
                     "required": ["section_name", "company"],
+                }
+            },
+        }
+    },
+    {
+        "toolSpec": {
+            "name": "calculate",
+            "description": (
+                "Perform verified arithmetic on financial figures. Use this "
+                "instead of mental maths to ensure accuracy. Supports: "
+                "add, subtract, multiply, divide, percentage_change "
+                "(old→new), percentage_of (part/whole), difference. "
+                "Example: percentage_change from 12.5 to 14.9, or "
+                "difference between CET1 ratio 14.9% and minimum 4.5%."
+            ),
+            "inputSchema": {
+                "json": {
+                    "type": "object",
+                    "properties": {
+                        "operation": {
+                            "type": "string",
+                            "enum": list(_OPS.keys()),
+                            "description": "The arithmetic operation.",
+                        },
+                        "a": {
+                            "type": "number",
+                            "description": (
+                                "First operand. For percentage_change this is the old value."
+                            ),
+                        },
+                        "b": {
+                            "type": "number",
+                            "description": (
+                                "Second operand. For percentage_change this is the new value."
+                            ),
+                        },
+                        "label": {
+                            "type": "string",
+                            "description": (
+                                "What this calculation represents, e.g. "
+                                "'HSBC CET1 headroom above 4.5% minimum'."
+                            ),
+                        },
+                    },
+                    "required": ["operation", "a", "b"],
                 }
             },
         }
@@ -135,10 +193,17 @@ TOOL_SPECS = [
 def _exec_search_documents(tool_input: dict) -> dict:
     chunks = _retrieve(tool_input["query"])
     if not chunks:
-        return {"results": [], "message": "No relevant documents found for this query."}
+        return {
+            "results": [],
+            "message": "No relevant documents found for this query.",
+        }
     return {
         "results": [
-            {"text": c["content"], "source": c["source"], "relevance_score": round(c["score"], 3)}
+            {
+                "text": c["content"],
+                "source": c["source"],
+                "relevance_score": round(c["score"], 3),
+            }
             for c in chunks
         ]
     }
@@ -184,7 +249,11 @@ def _exec_extract_metric(tool_input: dict) -> dict:
         "metric": metric,
         "company": company,
         "results": [
-            {"text": c["content"], "source": c["source"], "relevance_score": round(c["score"], 3)}
+            {
+                "text": c["content"],
+                "source": c["source"],
+                "relevance_score": round(c["score"], 3),
+            }
             for c in chunks
         ],
     }
@@ -200,15 +269,51 @@ def _exec_get_section(tool_input: dict) -> dict:
             "section": section,
             "company": company,
             "results": [],
-            "message": f"Could not find '{section}' section for {company}.",
+            "message": (f"Could not find '{section}' section for {company}."),
         }
     return {
         "section": section,
         "company": company,
         "results": [
-            {"text": c["content"], "source": c["source"], "relevance_score": round(c["score"], 3)}
+            {
+                "text": c["content"],
+                "source": c["source"],
+                "relevance_score": round(c["score"], 3),
+            }
             for c in chunks
         ],
+    }
+
+
+def _exec_calculate(tool_input: dict) -> dict:
+    op_name = tool_input["operation"]
+    a = tool_input["a"]
+    b = tool_input["b"]
+    label = tool_input.get("label", "")
+
+    op_fn = _OPS.get(op_name)
+    if not op_fn:
+        return {"error": f"Unknown operation: {op_name}"}
+
+    if op_name in ("divide", "percentage_change", "percentage_of"):
+        if (op_name == "divide" and b == 0) or (
+            op_name in ("percentage_change", "percentage_of") and a == 0
+        ):
+            return {
+                "error": "Division by zero",
+                "operation": op_name,
+                "a": a,
+                "b": b,
+            }
+
+    result = round(op_fn(a, b), 4)
+    return {
+        "result": result,
+        "operation": op_name,
+        "a": a,
+        "b": b,
+        "label": label,
+        "formatted": f"{result:,.4f}".rstrip("0").rstrip("."),
     }
 
 
@@ -217,6 +322,7 @@ TOOL_HANDLERS = {
     "get_filing_metadata": _exec_get_filing_metadata,
     "extract_metric": _exec_extract_metric,
     "get_section": _exec_get_section,
+    "calculate": _exec_calculate,
 }
 
 
@@ -227,11 +333,11 @@ def execute_tool(tool_name: str, tool_input: dict) -> dict:
         return {"error": f"Unknown tool: {tool_name}"}
     try:
         result = handler(tool_input)
-        logger.info(
-            "Tool %s: %d results",
-            tool_name,
-            len(result.get("results", result.get("documents", []))),
+        count = len(
+            result.get("results", result.get("documents", [])),
         )
+        summary = result.get("formatted", f"{count} results")
+        logger.info("Tool %s: %s", tool_name, summary)
         return result
     except Exception:
         logger.exception("Tool %s failed", tool_name)
