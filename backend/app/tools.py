@@ -8,8 +8,6 @@ from app.documents import list_documents
 
 logger = logging.getLogger(__name__)
 
-# Whitelisted operations for the calculate tool.
-# No eval(), no arbitrary code — just safe arithmetic.
 _OPS = {
     "add": operator.add,
     "subtract": operator.sub,
@@ -20,16 +18,19 @@ _OPS = {
     "difference": lambda a, b: a - b,
 }
 
+# Limit text per chunk to keep context size manageable across
+# multi-iteration agent loops.
+_MAX_CHUNK_CHARS = 1000
+
 TOOL_SPECS = [
     {
         "toolSpec": {
             "name": "search_documents",
             "description": (
-                "Search the financial document corpus for information relevant to a query. "
-                "Use this to find specific facts, figures, disclosures, or commentary "
-                "from annual reports, earnings transcripts, and regulatory filings. "
-                "Returns the most relevant text passages with source attribution. "
-                "Use specific financial terms in the query for best results."
+                "Search the financial document corpus for information "
+                "relevant to a query. Returns the most relevant text "
+                "passages with source attribution. Use specific "
+                "financial terms in the query for best results."
             ),
             "inputSchema": {
                 "json": {
@@ -38,8 +39,8 @@ TOOL_SPECS = [
                         "query": {
                             "type": "string",
                             "description": (
-                                "The search query. Be specific — include company name, "
-                                "metric name, and time period where possible. "
+                                "Search query. Be specific — include "
+                                "company name, metric, and period. "
                                 "Example: 'HSBC net interest margin 2024'"
                             ),
                         },
@@ -53,10 +54,9 @@ TOOL_SPECS = [
         "toolSpec": {
             "name": "get_filing_metadata",
             "description": (
-                "List all documents in the corpus with their metadata: "
-                "company name, document type, reporting period, and upload date. "
-                "Use this to find out what filings are available before searching, "
-                "or to answer questions like 'which companies do you have reports for?'"
+                "List all documents in the corpus with metadata: "
+                "company name, document type, reporting period. "
+                "Use to check what filings are available."
             ),
             "inputSchema": {
                 "json": {
@@ -64,10 +64,7 @@ TOOL_SPECS = [
                     "properties": {
                         "company": {
                             "type": "string",
-                            "description": (
-                                "Optional filter by company name. "
-                                "Leave empty to list all documents."
-                            ),
+                            "description": ("Optional company name filter."),
                         },
                     },
                     "required": [],
@@ -79,11 +76,9 @@ TOOL_SPECS = [
         "toolSpec": {
             "name": "extract_metric",
             "description": (
-                "Search for a specific named financial metric across one or more "
-                "companies. Optimised for extracting numerical values like ratios, "
-                "margins, totals, and percentages. "
-                "For comparing the same metric across multiple companies, call this "
-                "tool once per company."
+                "Extract a specific financial metric for a company. "
+                "Optimised for numerical values: ratios, margins, "
+                "totals, percentages. Call once per company."
             ),
             "inputSchema": {
                 "json": {
@@ -92,21 +87,18 @@ TOOL_SPECS = [
                         "metric_name": {
                             "type": "string",
                             "description": (
-                                "The financial metric to extract, e.g. "
-                                "'CET1 ratio', 'net interest margin', 'return on equity', "
-                                "'operating profit', 'cost-to-income ratio'."
+                                "The metric, e.g. 'CET1 ratio', "
+                                "'net interest margin', 'return on "
+                                "equity', 'cost-to-income ratio'."
                             ),
                         },
                         "company": {
                             "type": "string",
-                            "description": "The company to extract the metric for.",
+                            "description": ("The company to extract from."),
                         },
                         "period": {
                             "type": "string",
-                            "description": (
-                                "Reporting period, e.g. '2024', '2023', 'Q3 2024'. "
-                                "Optional — omit to get the most recent available."
-                            ),
+                            "description": ("Reporting period, e.g. '2024'. Optional."),
                         },
                     },
                     "required": ["metric_name", "company"],
@@ -118,11 +110,10 @@ TOOL_SPECS = [
         "toolSpec": {
             "name": "get_section",
             "description": (
-                "Retrieve a full named section from a company's filing. "
-                "Use for summaries or detailed reading of a specific part of a report. "
+                "Retrieve a named section from a company's filing. "
                 "Common sections: 'Risk Factors', 'Capital Adequacy', "
-                "'CEO Statement', 'Outlook', 'Segment Reporting', "
-                "'Net Interest Income', 'Credit Risk', 'Liquidity'."
+                "'CEO Statement', 'Outlook', 'Credit Risk', "
+                "'Liquidity'."
             ),
             "inputSchema": {
                 "json": {
@@ -130,7 +121,7 @@ TOOL_SPECS = [
                     "properties": {
                         "section_name": {
                             "type": "string",
-                            "description": ("The section to retrieve, e.g. 'Risk Factors'."),
+                            "description": ("Section name, e.g. 'Risk Factors'."),
                         },
                         "company": {
                             "type": "string",
@@ -146,12 +137,10 @@ TOOL_SPECS = [
         "toolSpec": {
             "name": "calculate",
             "description": (
-                "Perform verified arithmetic on financial figures. Use this "
-                "instead of mental maths to ensure accuracy. Supports: "
-                "add, subtract, multiply, divide, percentage_change "
-                "(old→new), percentage_of (part/whole), difference. "
-                "Example: percentage_change from 12.5 to 14.9, or "
-                "difference between CET1 ratio 14.9% and minimum 4.5%."
+                "Verified arithmetic on financial figures. Use instead "
+                "of mental maths. Supports: add, subtract, multiply, "
+                "divide, percentage_change (old→new), percentage_of "
+                "(part/whole), difference."
             ),
             "inputSchema": {
                 "json": {
@@ -160,25 +149,20 @@ TOOL_SPECS = [
                         "operation": {
                             "type": "string",
                             "enum": list(_OPS.keys()),
-                            "description": "The arithmetic operation.",
+                            "description": "The operation.",
                         },
                         "a": {
                             "type": "number",
-                            "description": (
-                                "First operand. For percentage_change this is the old value."
-                            ),
+                            "description": ("First operand (old value for percentage_change)."),
                         },
                         "b": {
                             "type": "number",
-                            "description": (
-                                "Second operand. For percentage_change this is the new value."
-                            ),
+                            "description": ("Second operand (new value for percentage_change)."),
                         },
                         "label": {
                             "type": "string",
                             "description": (
-                                "What this calculation represents, e.g. "
-                                "'HSBC CET1 headroom above 4.5% minimum'."
+                                "What this calculates, e.g. 'HSBC CET1 headroom above 4.5%'."
                             ),
                         },
                     },
@@ -187,7 +171,79 @@ TOOL_SPECS = [
             },
         }
     },
+    {
+        "toolSpec": {
+            "name": "generate_briefing",
+            "description": (
+                "Generate a structured briefing document from research "
+                "findings. Call AFTER gathering data with other tools. "
+                "The briefing output is the final answer — return it "
+                "verbatim, do not rewrite it."
+            ),
+            "inputSchema": {
+                "json": {
+                    "type": "object",
+                    "properties": {
+                        "title": {
+                            "type": "string",
+                            "description": (
+                                "Briefing title, e.g. 'HSBC vs Barclays: Capital Position'."
+                            ),
+                        },
+                        "executive_summary": {
+                            "type": "string",
+                            "description": ("2-3 sentence overview of findings."),
+                        },
+                        "sections": {
+                            "type": "array",
+                            "description": "Briefing sections.",
+                            "items": {
+                                "type": "object",
+                                "properties": {
+                                    "heading": {
+                                        "type": "string",
+                                    },
+                                    "content": {
+                                        "type": "string",
+                                        "description": (
+                                            "Markdown with tables, figures, and citations."
+                                        ),
+                                    },
+                                },
+                                "required": [
+                                    "heading",
+                                    "content",
+                                ],
+                            },
+                        },
+                        "sources": {
+                            "type": "array",
+                            "description": "Source documents used.",
+                            "items": {"type": "string"},
+                        },
+                    },
+                    "required": [
+                        "title",
+                        "executive_summary",
+                        "sections",
+                        "sources",
+                    ],
+                }
+            },
+        }
+    },
 ]
+
+
+def _format_chunks(chunks: list[dict]) -> list[dict]:
+    return [
+        {
+            "text": c["content"][:_MAX_CHUNK_CHARS],
+            "source": c["source"],
+            "relevance_score": round(c["score"], 3),
+        }
+        for c in chunks
+    ]
 
 
 def _exec_search_documents(tool_input: dict) -> dict:
@@ -195,18 +251,9 @@ def _exec_search_documents(tool_input: dict) -> dict:
     if not chunks:
         return {
             "results": [],
-            "message": "No relevant documents found for this query.",
+            "message": "No relevant documents found.",
         }
-    return {
-        "results": [
-            {
-                "text": c["content"],
-                "source": c["source"],
-                "relevance_score": round(c["score"], 3),
-            }
-            for c in chunks
-        ]
-    }
+    return {"results": _format_chunks(chunks)}
 
 
 def _exec_get_filing_metadata(tool_input: dict) -> dict:
@@ -243,19 +290,12 @@ def _exec_extract_metric(tool_input: dict) -> dict:
             "metric": metric,
             "company": company,
             "results": [],
-            "message": f"No data found for {metric} at {company}.",
+            "message": (f"No data found for {metric} at {company}."),
         }
     return {
         "metric": metric,
         "company": company,
-        "results": [
-            {
-                "text": c["content"],
-                "source": c["source"],
-                "relevance_score": round(c["score"], 3),
-            }
-            for c in chunks
-        ],
+        "results": _format_chunks(chunks),
     }
 
 
@@ -269,19 +309,12 @@ def _exec_get_section(tool_input: dict) -> dict:
             "section": section,
             "company": company,
             "results": [],
-            "message": (f"Could not find '{section}' section for {company}."),
+            "message": (f"Could not find '{section}' for {company}."),
         }
     return {
         "section": section,
         "company": company,
-        "results": [
-            {
-                "text": c["content"],
-                "source": c["source"],
-                "relevance_score": round(c["score"], 3),
-            }
-            for c in chunks
-        ],
+        "results": _format_chunks(chunks),
     }
 
 
@@ -295,16 +328,16 @@ def _exec_calculate(tool_input: dict) -> dict:
     if not op_fn:
         return {"error": f"Unknown operation: {op_name}"}
 
-    if op_name in ("divide", "percentage_change", "percentage_of"):
-        if (op_name == "divide" and b == 0) or (
-            op_name in ("percentage_change", "percentage_of") and a == 0
-        ):
-            return {
-                "error": "Division by zero",
-                "operation": op_name,
-                "a": a,
-                "b": b,
-            }
+    divisor_is_zero = (op_name == "divide" and b == 0) or (
+        op_name in ("percentage_change", "percentage_of") and a == 0
+    )
+    if divisor_is_zero:
+        return {
+            "error": "Division by zero",
+            "operation": op_name,
+            "a": a,
+            "b": b,
+        }
 
     result = round(op_fn(a, b), 4)
     return {
@@ -317,12 +350,57 @@ def _exec_calculate(tool_input: dict) -> dict:
     }
 
 
+def _exec_generate_briefing(tool_input: dict) -> dict:
+    title = tool_input["title"]
+    summary = tool_input["executive_summary"]
+    sections = tool_input.get("sections", [])
+    sources = tool_input.get("sources", [])
+
+    lines = [
+        f"# {title}",
+        "",
+        "*Prepared by FinSight · Investment Analyst Copilot*",
+        "",
+        "---",
+        "",
+        "## Executive Summary",
+        "",
+        summary,
+        "",
+    ]
+
+    for section in sections:
+        lines.append(f"## {section['heading']}")
+        lines.append("")
+        lines.append(section["content"])
+        lines.append("")
+
+    if sources:
+        lines.append("---")
+        lines.append("")
+        lines.append("## Sources")
+        lines.append("")
+        for s in sources:
+            lines.append(f"- {s}")
+        lines.append("")
+
+    briefing_markdown = "\n".join(lines)
+
+    return {
+        "briefing": briefing_markdown,
+        "title": title,
+        "section_count": len(sections),
+        "source_count": len(sources),
+    }
+
+
 TOOL_HANDLERS = {
     "search_documents": _exec_search_documents,
     "get_filing_metadata": _exec_get_filing_metadata,
     "extract_metric": _exec_extract_metric,
     "get_section": _exec_get_section,
     "calculate": _exec_calculate,
+    "generate_briefing": _exec_generate_briefing,
 }
 
 

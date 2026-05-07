@@ -10,6 +10,7 @@ const TOOL_LABELS: Record<string, string> = {
   extract_metric: "Extracting metric",
   get_section: "Reading section",
   calculate: "Calculating",
+  generate_briefing: "Drafting briefing",
 };
 
 function formatToolInput(input: Record<string, string>): string {
