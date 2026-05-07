@@ -1,11 +1,12 @@
 import { useCallback, useRef, useState } from "react";
-import type { Message, SSEEvent } from "../types/research";
+import type { ActiveTool, Message, SSEEvent } from "../types/research";
 
 const API_URL = import.meta.env.VITE_API_URL || "";
 
 export function useResearchStream() {
   const [messages, setMessages] = useState<Message[]>([]);
   const [isStreaming, setIsStreaming] = useState(false);
+  const [activeTool, setActiveTool] = useState<ActiveTool | null>(null);
   const [sessionId, setSessionId] = useState<string>(() => crypto.randomUUID());
   const [saveCount, setSaveCount] = useState(0);
   const abortRef = useRef<AbortController | null>(null);
@@ -25,6 +26,7 @@ export function useResearchStream() {
               citations: m.citations,
               isGrounded: m.isGrounded,
               tokenUsage: m.tokenUsage,
+              toolCalls: m.toolCalls,
             })),
           }),
         });
@@ -54,11 +56,12 @@ export function useResearchStream() {
 
       setMessages((prev) => [...prev, userMsg, assistantMsg]);
       setIsStreaming(true);
+      setActiveTool(null);
 
       abortRef.current = new AbortController();
 
       try {
-        const res = await fetch(`${API_URL}/research/stream`, {
+        const res = await fetch(`${API_URL}/research/agent/stream`, {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({ message: question }),
@@ -84,10 +87,39 @@ export function useResearchStream() {
 
           for (const line of lines) {
             if (!line.startsWith("data: ")) continue;
-            const json = line.slice(6).trim();
-            if (!json) continue;
+            const raw = line.slice(6).trim();
+            if (!raw) continue;
 
-            const event: SSEEvent = JSON.parse(json);
+            const event: SSEEvent = JSON.parse(raw);
+
+            if (event.type === "tool_call") {
+              setActiveTool({
+                tool: event.tool,
+                input: event.input,
+              });
+              continue;
+            }
+
+            if (event.type === "tool_result") {
+              setActiveTool(null);
+              setMessages((prev) =>
+                prev.map((m) =>
+                  m.id === assistantId ? { ...m, toolsUsed: true } : m,
+                ),
+              );
+              continue;
+            }
+
+            if (event.type === "error") {
+              setMessages((prev) =>
+                prev.map((m) =>
+                  m.id === assistantId
+                    ? { ...m, content: event.message, isStreaming: false }
+                    : m,
+                ),
+              );
+              continue;
+            }
 
             setMessages((prev) => {
               const updated = prev.map((m) => {
@@ -106,6 +138,7 @@ export function useResearchStream() {
                     return {
                       ...m,
                       tokenUsage: event.token_usage,
+                      toolCalls: event.tool_calls,
                       isStreaming: false,
                     };
                   default:
@@ -118,7 +151,6 @@ export function useResearchStream() {
           }
         }
 
-        // Auto-save after streaming completes
         if (finalMessages.length > 0) {
           void saveSession(finalMessages);
         }
@@ -138,6 +170,7 @@ export function useResearchStream() {
         );
       } finally {
         setIsStreaming(false);
+        setActiveTool(null);
       }
     },
     [saveSession],
@@ -146,7 +179,10 @@ export function useResearchStream() {
   const stop = useCallback(() => {
     abortRef.current?.abort();
     setIsStreaming(false);
-    setMessages((prev) => prev.map((m) => (m.isStreaming ? { ...m, isStreaming: false } : m)));
+    setActiveTool(null);
+    setMessages((prev) =>
+      prev.map((m) => (m.isStreaming ? { ...m, isStreaming: false } : m)),
+    );
   }, []);
 
   const loadSession = useCallback(async (id: string) => {
@@ -170,6 +206,7 @@ export function useResearchStream() {
   return {
     messages,
     isStreaming,
+    activeTool,
     sessionId,
     saveCount,
     send,

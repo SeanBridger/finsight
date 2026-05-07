@@ -7,7 +7,7 @@ import { useResearchStream } from "../hooks/useResearchStream";
 import type { Citation } from "../types/research";
 
 export function ChatPage() {
-  const { messages, isStreaming, sessionId, saveCount, send, stop, loadSession, newSession } =
+  const { messages, isStreaming, activeTool, sessionId, saveCount, send, stop, loadSession, newSession } =
     useResearchStream();
   const [activeCitation, setActiveCitation] = useState<Citation | null>(null);
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
@@ -92,7 +92,12 @@ export function ChatPage() {
           ) : (
             <div className="mx-auto max-w-3xl space-y-4">
               {messages.map((m) => (
-                <MessageBubble key={m.id} message={m} onCitationClick={setActiveCitation} />
+                <MessageBubble
+                  key={m.id}
+                  message={m}
+                  activeTool={m.isStreaming ? activeTool : null}
+                  onCitationClick={setActiveCitation}
+                />
               ))}
               <div ref={bottomRef} />
             </div>

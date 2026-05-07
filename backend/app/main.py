@@ -3,6 +3,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import StreamingResponse
 from pydantic import BaseModel
 
+from app.agent import agent_research, agent_research_stream
 from app.bedrock import chat, research_query, research_query_stream
 from app.documents import (
     confirm_upload,
@@ -68,6 +69,22 @@ class SaveSessionRequest(BaseModel):
     session_id: str
     messages: list[dict]
     title: str | None = None
+
+
+class ToolCall(BaseModel):
+    tool: str
+    input: dict
+    result_summary: str
+    iteration: int
+
+
+class AgentResponse(BaseModel):
+    answer: str
+    tool_calls: list[ToolCall]
+    citations: list[dict]
+    is_grounded: bool
+    iterations: int
+    token_usage: TokenUsage | None = None
 
 
 @app.get("/health")
@@ -148,4 +165,20 @@ async def save_session_endpoint(request: SaveSessionRequest):
         session_id=request.session_id,
         messages=request.messages,
         title=request.title,
+    )
+
+
+@app.post("/research/agent", response_model=AgentResponse)
+async def agent_research_endpoint(request: ChatRequest):
+    """Agentic research — Claude decides which tools to call."""
+    return AgentResponse(**agent_research(request.message))
+
+
+@app.post("/research/agent/stream")
+async def agent_stream_endpoint(request: ChatRequest):
+    """Streaming agentic research with tool call events."""
+    return StreamingResponse(
+        agent_research_stream(request.message),
+        media_type="text/event-stream",
+        headers={"Cache-Control": "no-cache", "X-Accel-Buffering": "no"},
     )
