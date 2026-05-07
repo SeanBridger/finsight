@@ -51,6 +51,35 @@ def _extract_text(message: dict) -> str:
     return "\n\n".join(block["text"] for block in message.get("content", []) if "text" in block)
 
 
+def _build_messages(
+    question: str,
+    history: list[dict],
+) -> list[dict]:
+    """Build Converse messages from frontend chat history.
+
+    Prior turns give Claude context for follow-up questions like
+    "How does that compare to HSBC?" without restating the metric.
+    """
+    messages = []
+    for h in history:
+        role = h.get("role", "user")
+        content = h.get("content", "")
+        if role in ("user", "assistant") and content:
+            messages.append(
+                {
+                    "role": role,
+                    "content": [{"text": content}],
+                }
+            )
+    messages.append(
+        {
+            "role": "user",
+            "content": [{"text": question}],
+        }
+    )
+    return messages
+
+
 def _process_tool_calls(
     assistant_message: dict,
 ) -> tuple[list[dict], list[dict]]:
@@ -201,7 +230,6 @@ def _consume_converse_stream(messages: list[dict]):
             usage = event["metadata"].get("usage", {})
             continue
 
-    # Assemble the complete assistant message
     assistant_message = {"role": "assistant", "content": []}
     for block_index in sorted(content_blocks):
         block = content_blocks[block_index]
@@ -236,8 +264,11 @@ def _consume_converse_stream(messages: list[dict]):
     )
 
 
-def agent_research(question: str) -> dict:
-    messages = [{"role": "user", "content": [{"text": question}]}]
+def agent_research(
+    question: str,
+    history: list[dict] | None = None,
+) -> dict:
+    messages = _build_messages(question, history or [])
     all_tool_calls = []
     all_citations = []
     total_input = 0
@@ -309,14 +340,17 @@ def agent_research(question: str) -> dict:
     }
 
 
-def agent_research_stream(question: str):
+def agent_research_stream(
+    question: str,
+    history: list[dict] | None = None,
+):
     """Yields SSE events as the agent works.
 
     Streams every Bedrock turn via converse_stream so the final
     answer arrives token-by-token. Tool iterations yield tool_call
     before execution so the frontend can show activity indicators.
     """
-    messages = [{"role": "user", "content": [{"text": question}]}]
+    messages = _build_messages(question, history or [])
     all_tool_calls = []
     all_citations = []
     total_input = 0
@@ -400,8 +434,6 @@ def agent_research_stream(question: str):
                 tool_name = tool_use["name"]
                 tool_input = tool_use.get("input", {})
 
-                # Yield before execution so the frontend shows
-                # the activity indicator during KB retrieval
                 yield _sse(
                     {
                         "type": "tool_call",

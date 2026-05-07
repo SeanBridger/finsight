@@ -87,6 +87,11 @@ class AgentResponse(BaseModel):
     token_usage: TokenUsage | None = None
 
 
+class AgentRequest(BaseModel):
+    message: str
+    history: list[dict] = []
+
+
 @app.get("/health")
 async def health():
     return {"status": "healthy"}
@@ -169,16 +174,21 @@ async def save_session_endpoint(request: SaveSessionRequest):
 
 
 @app.post("/research/agent", response_model=AgentResponse)
-async def agent_research_endpoint(request: ChatRequest):
+async def agent_research_endpoint(request: AgentRequest):
     """Agentic research — Claude decides which tools to call."""
-    return AgentResponse(**agent_research(request.message))
+    return AgentResponse(
+        **agent_research(request.message, request.history),
+    )
 
 
 @app.post("/research/agent/stream")
-async def agent_stream_endpoint(request: ChatRequest):
+async def agent_stream_endpoint(request: AgentRequest):
     """Streaming agentic research with tool call events."""
     return StreamingResponse(
-        agent_research_stream(request.message),
+        agent_research_stream(request.message, request.history),
         media_type="text/event-stream",
-        headers={"Cache-Control": "no-cache", "X-Accel-Buffering": "no"},
+        headers={
+            "Cache-Control": "no-cache",
+            "X-Accel-Buffering": "no",
+        },
     )

@@ -40,6 +40,11 @@ export function useResearchStream() {
 
   const send = useCallback(
     async (question: string) => {
+      const history = messages.map((m) => ({
+        role: m.role,
+        content: m.content,
+      }));
+
       const userMsg: Message = {
         id: crypto.randomUUID(),
         role: "user",
@@ -64,7 +69,7 @@ export function useResearchStream() {
         const res = await fetch(`${API_URL}/research/agent/stream`, {
           method: "POST",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ message: question }),
+          body: JSON.stringify({ message: question, history }),
           signal: abortRef.current.signal,
         });
 
@@ -173,7 +178,7 @@ export function useResearchStream() {
         setActiveTool(null);
       }
     },
-    [saveSession],
+    [messages, saveSession],
   );
 
   const stop = useCallback(() => {
