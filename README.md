@@ -61,9 +61,9 @@ An analyst uploads annual reports (HSBC, Barclays, Lloyds, NatWest) and asks res
 | Guardrails | Bedrock Guardrails (topic denial, content filters, word filters, prompt attack detection) |
 | Document Store | S3 (SSE encryption, Block Public Access, versioning) |
 | Metadata | DynamoDB (on-demand, point-in-time recovery) |
-| Network | VPC, private subnets, PrivateLink (Bedrock, ECR, Secrets Manager, KMS, CloudWatch Logs, STS) |
+| Network | VPC, private subnets, PrivateLink (Bedrock, ECR, Secrets Manager, KMS, CloudWatch Logs, CloudWatch Monitoring, STS, Lambda) |
 | IaC | AWS CDK (TypeScript) |
-| Monitoring | CloudWatch, per-request metrics dashboard, RAG eval pipeline |
+| Monitoring | CloudWatch custom metrics + alarms, SNS alerts, per-request dashboard, RAG eval pipeline |
 
 ## Project Structure
 
@@ -102,6 +102,7 @@ finsight/
 │       ├── guardrail-stack.ts     # Bedrock Guardrail policies
 │       ├── compute-stack.ts       # ECS Fargate, ALB, Lambda, IAM
 │       ├── frontend-stack.ts      # S3, CloudFront, OAC
+│       ├── monitoring-stack.ts    # CloudWatch alarms, SNS alerts
 │       └── config.ts             # Account, region, model IDs
 ├── scripts/
 │   ├── deploy.sh
@@ -142,6 +143,13 @@ npm run test:e2e
 - Latency line chart, cost per request bar chart
 - Token usage (stacked input/output), tool usage distribution pie chart
 - Recent requests table with status indicators
+
+**Drift detection & cost alarms** via CloudWatch:
+- Custom metrics published per request (latency, cost, tokens, errors, guardrail blocks)
+- High latency alarm: p95 > 30s (agent stuck in loop or Bedrock throttling)
+- Cost spike alarm: > $1 in 5 minutes (runaway agentic chains)
+- Error rate alarm: 3+ errors in 5 minutes (Bedrock failures)
+- SNS email notifications, alert email injected at deploy time via CDK context
 
 **RAG evaluation pipeline** using LLM-as-a-judge (Haiku):
 - 15 curated Q&A pairs across 4 categories: metric extraction, section retrieval, cross-document comparison, not-found detection
