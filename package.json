@@ -4,6 +4,9 @@
   "scripts": {
     "deploy": "./scripts/deploy.sh",
     "destroy": "./scripts/destroy.sh",
+    "test": "cd backend && PYTHONPATH=. pytest tests/test_guardrails.py -m regex -v",
+    "test:guardrail": "cd backend && PYTHONPATH=. pytest tests/test_guardrails.py -m 'regex or guardrail' -v",
+    "test:e2e": "cd backend && PYTHONPATH=. pytest tests/test_guardrails.py -v",
     "lint:infra": "cd infra && npm run lint",
     "lint:backend": "cd backend && ruff check . && ruff format --check .",
     "lint:frontend": "cd frontend && npx eslint . && npx prettier --check src/",
@@ -11,6 +14,7 @@
     "lint:backend:fix": "cd backend && ruff check --fix . && ruff format .",
     "lint:frontend:fix": "cd frontend && npx eslint --fix . && npx prettier --write src/",
     "lint": "npm run lint:infra && npm run lint:backend && npm run lint:frontend",
-    "lint:fix": "npm run lint:infra:fix && npm run lint:backend:fix && npm run lint:frontend:fix"
+    "lint:fix": "npm run lint:infra:fix && npm run lint:backend:fix && npm run lint:frontend:fix",
+    "predeploy": "npm test"
   }
 }

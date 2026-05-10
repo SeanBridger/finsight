@@ -12,7 +12,7 @@ _INJECTION_PATTERNS = [
     r"ignore\s+your\s+(instructions|prompts|rules|guidelines)",
     r"ignore\s+(all\s+)?(previous|prior|above|earlier)\s+(instructions|prompts|rules)",
     r"disregard\s+(all\s+)?(previous|prior|above|earlier)",
-    r"forget\s+(all\s+)?(previous|prior|your)\s+(instructions|rules|context)",
+    r"forget\s+(all\s+)?(previous|prior|your)(\s+\w+)?\s+(instructions|rules|context|guidelines)",
     r"you\s+are\s+now\s+(?!an?\s+(?:investment\s+)?analyst)",
     r"new\s+instructions?\s*:",
     r"system\s*:\s*",
