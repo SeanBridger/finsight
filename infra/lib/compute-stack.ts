@@ -19,6 +19,7 @@ interface ComputeStackProps extends cdk.StackProps {
   dataSourceId: string;
   guardrailId: string;
   guardrailVersion: string;
+  metricsTable: dynamodb.ITable;
 }
 
 export class ComputeStack extends cdk.Stack {
@@ -27,7 +28,17 @@ export class ComputeStack extends cdk.Stack {
   constructor(scope: Construct, id: string, props: ComputeStackProps) {
     super(scope, id, props);
 
-    const { vpc, documentsBucket, documentMetadataTable, chatHistoryTable } = props;
+    const {
+      vpc,
+      documentsBucket,
+      documentMetadataTable,
+      chatHistoryTable,
+      metricsTable,
+      knowledgeBaseId,
+      dataSourceId,
+      guardrailId,
+      guardrailVersion,
+    } = props;
 
     // VPC endpoints now live in NetworkingStack — created once, always available.
     // No more DNS conflict race conditions on deploy/destroy cycles.
@@ -61,7 +72,7 @@ export class ComputeStack extends cdk.Stack {
       effect: iam.Effect.ALLOW,
       actions: ['bedrock:GetIngestionJob', 'bedrock:Retrieve'],
       resources: [
-        `arn:aws:bedrock:${CONFIG.region}:${CONFIG.account}:knowledge-base/${props.knowledgeBaseId}`,
+        `arn:aws:bedrock:${CONFIG.region}:${CONFIG.account}:knowledge-base/${knowledgeBaseId}`,
       ],
     }));
 
@@ -84,6 +95,7 @@ export class ComputeStack extends cdk.Stack {
     // DynamoDB — document metadata CRUD
     documentMetadataTable.grantReadWriteData(taskRole);
     chatHistoryTable.grantReadWriteData(taskRole);
+    metricsTable.grantReadWriteData(taskRole);
 
     // Lambda log group — explicit so CDK owns it and destroys it cleanly
     const syncLogGroup = new logs.LogGroup(this, 'SyncFunctionLogGroup', {
@@ -135,7 +147,7 @@ def handler(event, context):
         'bedrock:AssociateThirdPartyKnowledgeBase',
       ],
       resources: [
-        `arn:aws:bedrock:${CONFIG.region}:${CONFIG.account}:knowledge-base/${props.knowledgeBaseId}`,
+        `arn:aws:bedrock:${CONFIG.region}:${CONFIG.account}:knowledge-base/${knowledgeBaseId}`,
       ],
     }));
 
@@ -158,11 +170,12 @@ def handler(event, context):
         DOCUMENTS_BUCKET: documentsBucket.bucketName,
         DOCUMENT_METADATA_TABLE: documentMetadataTable.tableName,
         CHAT_HISTORY_TABLE: chatHistoryTable.tableName,
-        KNOWLEDGE_BASE_ID: props.knowledgeBaseId,
-        DATA_SOURCE_ID: props.dataSourceId,
+        KNOWLEDGE_BASE_ID: knowledgeBaseId,
+        DATA_SOURCE_ID: dataSourceId,
         SYNC_FUNCTION_NAME: syncFunction.functionName,
-        GUARDRAIL_ID: props.guardrailId,
-        GUARDRAIL_VERSION: props.guardrailVersion,
+        GUARDRAIL_ID: guardrailId,
+        GUARDRAIL_VERSION: guardrailVersion,
+        METRICS_TABLE: metricsTable.tableName,
       },
       portMappings: [{ containerPort: 8000 }],
     });

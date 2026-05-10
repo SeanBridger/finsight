@@ -12,6 +12,7 @@ from app.documents import (
     sync_knowledge_base,
 )
 from app.guardrail_test import test_guardrail
+from app.metrics import get_metrics
 from app.sessions import get_session, list_sessions, save_session
 
 app = FastAPI(title="FinSight API", version="0.1.0")
@@ -185,3 +186,8 @@ async def guardrail_test(request: dict):
     text = request.get("text", "")
     source = request.get("source", "INPUT")
     return test_guardrail(text, source)
+
+
+@app.get("/metrics")
+async def metrics_endpoint(days: int = 7):
+    return get_metrics(days=days)

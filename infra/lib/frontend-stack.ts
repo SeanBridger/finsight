@@ -75,6 +75,7 @@ export class FrontendStack extends cdk.Stack {
         '/sessions/*': { ...apiDefaults },
         '/guardrail/*': { ...apiDefaults },
         '/chat': { ...apiDefaults },
+        '/metrics*': { ...apiDefaults },
       },
       errorResponses: [
         {

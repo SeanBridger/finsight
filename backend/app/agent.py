@@ -15,6 +15,7 @@ import boto3
 from app.bedrock import ANALYST_PERSONA, RAGConfig
 from app.guardrail_test import test_guardrail
 from app.guardrails import validate_input
+from app.metrics import RequestTimer, log_request
 from app.tools import TOOL_SPECS, execute_tool
 
 logger = logging.getLogger(__name__)
@@ -263,103 +264,116 @@ def agent_research(
     question: str,
     history: list[dict] | None = None,
 ) -> dict:
-    is_valid, rejection = validate_input(question)
-    if not is_valid:
-        return {
-            "answer": rejection,
-            "tool_calls": [],
-            "citations": [],
-            "is_grounded": False,
-            "iterations": 0,
-            "token_usage": {"input": 0, "output": 0},
-            "guardrail_blocked": True,
-        }
-
-    guardrail_result = test_guardrail(question, "INPUT")
-    if guardrail_result.get("blocked"):
-        return {
-            "answer": guardrail_result.get(
-                "blocked_response",
-                "Blocked by guardrails.",
-            ),
-            "tool_calls": [],
-            "citations": [],
-            "is_grounded": False,
-            "iterations": 0,
-            "token_usage": {"input": 0, "output": 0},
-            "guardrail_blocked": True,
-        }
-
-    messages = _build_messages(question, history or [])
-    all_tool_calls = []
-    all_citations = []
-    total_input = 0
-    total_output = 0
-
-    for iteration in range(MAX_ITERATIONS):
-        logger.info("Agent iteration %d", iteration + 1)
-        response = _converse_with_tools(messages)
-
-        usage = response.get("usage", {})
-        total_input += usage.get("inputTokens", 0)
-        total_output += usage.get("outputTokens", 0)
-
-        stop_reason = response["stopReason"]
-        assistant_message = response["output"]["message"]
-        messages.append(assistant_message)
-
-        if stop_reason == "end_turn":
+    with RequestTimer(question) as timer:
+        is_valid, rejection = validate_input(question)
+        if not is_valid:
+            timer.guardrail_blocked = True
             return {
-                "answer": _extract_text(assistant_message),
-                "tool_calls": all_tool_calls,
-                "citations": all_citations,
-                "is_grounded": bool(all_citations),
-                "iterations": iteration + 1,
-                "token_usage": {
-                    "input": total_input,
-                    "output": total_output,
-                },
+                "answer": rejection,
+                "tool_calls": [],
+                "citations": [],
+                "is_grounded": False,
+                "iterations": 0,
+                "token_usage": {"input": 0, "output": 0},
+                "guardrail_blocked": True,
             }
 
-        if stop_reason == "tool_use":
-            tool_results, tool_trace = _process_tool_calls(
-                assistant_message,
-            )
-            for tr in tool_results:
-                data = tr["toolResult"]["content"][0]["json"]
-                all_citations = _collect_citations(
-                    data,
-                    all_citations,
-                )
-            for t in tool_trace:
-                t["iteration"] = iteration + 1
-            all_tool_calls.extend(tool_trace)
-            messages.append(
-                {
-                    "role": "user",
-                    "content": tool_results,
+        guardrail_result = test_guardrail(question, "INPUT")
+        if guardrail_result.get("blocked"):
+            timer.guardrail_blocked = True
+            return {
+                "answer": guardrail_result.get(
+                    "blocked_response",
+                    "Blocked by guardrails.",
+                ),
+                "tool_calls": [],
+                "citations": [],
+                "is_grounded": False,
+                "iterations": 0,
+                "token_usage": {"input": 0, "output": 0},
+                "guardrail_blocked": True,
+            }
+
+        messages = _build_messages(question, history or [])
+        all_tool_calls = []
+        all_citations = []
+        total_input = 0
+        total_output = 0
+
+        for iteration in range(MAX_ITERATIONS):
+            logger.info("Agent iteration %d", iteration + 1)
+            response = _converse_with_tools(messages)
+
+            usage = response.get("usage", {})
+            total_input += usage.get("inputTokens", 0)
+            total_output += usage.get("outputTokens", 0)
+
+            stop_reason = response["stopReason"]
+            assistant_message = response["output"]["message"]
+            messages.append(assistant_message)
+
+            if stop_reason == "end_turn":
+                timer.input_tokens = total_input
+                timer.output_tokens = total_output
+                timer.tool_calls = all_tool_calls
+                timer.iterations = iteration + 1
+                return {
+                    "answer": _extract_text(assistant_message),
+                    "tool_calls": all_tool_calls,
+                    "citations": all_citations,
+                    "is_grounded": bool(all_citations),
+                    "iterations": iteration + 1,
+                    "token_usage": {
+                        "input": total_input,
+                        "output": total_output,
+                    },
                 }
+
+            if stop_reason == "tool_use":
+                tool_results, tool_trace = _process_tool_calls(
+                    assistant_message,
+                )
+                for tr in tool_results:
+                    data = tr["toolResult"]["content"][0]["json"]
+                    all_citations = _collect_citations(
+                        data,
+                        all_citations,
+                    )
+                for t in tool_trace:
+                    t["iteration"] = iteration + 1
+                all_tool_calls.extend(tool_trace)
+                messages.append(
+                    {
+                        "role": "user",
+                        "content": tool_results,
+                    }
+                )
+                continue
+
+            logger.warning(
+                "Unexpected stopReason: %s",
+                stop_reason,
             )
-            continue
+            break
 
-        logger.warning(
-            "Unexpected stopReason: %s",
-            stop_reason,
+        timer.input_tokens = total_input
+        timer.output_tokens = total_output
+        timer.tool_calls = all_tool_calls
+        timer.iterations = MAX_ITERATIONS
+        fallback = (
+            "I ran out of steps before completing the research. Try a more specific question."
         )
-        break
-
-    fallback = "I ran out of steps before completing the research. Try a more specific question."
-    return {
-        "answer": fallback,
-        "tool_calls": all_tool_calls,
-        "citations": all_citations,
-        "is_grounded": bool(all_citations),
-        "iterations": MAX_ITERATIONS,
-        "token_usage": {
-            "input": total_input,
-            "output": total_output,
-        },
-    }
+        return {
+            "answer": fallback,
+            "tool_calls": all_tool_calls,
+            "citations": all_citations,
+            "is_grounded": bool(all_citations),
+            "iterations": MAX_ITERATIONS,
+            "token_usage": {
+                "input": total_input,
+                "output": total_output,
+            },
+        }
 
 
 def agent_research_stream(
@@ -368,6 +382,15 @@ def agent_research_stream(
 ):
     is_valid, rejection = validate_input(question)
     if not is_valid:
+        log_request(
+            question=question,
+            latency_ms=0,
+            input_tokens=0,
+            output_tokens=0,
+            tool_calls=[],
+            iterations=0,
+            guardrail_blocked=True,
+        )
         yield _sse({"type": "guardrail_blocked", "message": rejection})
         yield _sse(
             {
@@ -386,6 +409,15 @@ def agent_research_stream(
             "blocked_response",
             "This request was blocked by our safety guardrails.",
         )
+        log_request(
+            question=question,
+            latency_ms=0,
+            input_tokens=0,
+            output_tokens=0,
+            tool_calls=[],
+            iterations=0,
+            guardrail_blocked=True,
+        )
         yield _sse({"type": "guardrail_blocked", "message": message})
         yield _sse(
             {
@@ -398,6 +430,7 @@ def agent_research_stream(
         )
         return
 
+    start_time = time.time()
     messages = _build_messages(question, history or [])
     all_tool_calls = []
     all_citations = []
@@ -427,6 +460,16 @@ def agent_research_stream(
 
         except Exception:
             logger.exception("Bedrock streaming failed")
+            elapsed_ms = int((time.time() - start_time) * 1000)
+            log_request(
+                question=question,
+                latency_ms=elapsed_ms,
+                input_tokens=total_input,
+                output_tokens=total_output,
+                tool_calls=all_tool_calls,
+                iterations=iteration + 1,
+                error="Bedrock streaming failed",
+            )
             yield _sse(
                 {
                     "type": "error",
@@ -436,6 +479,16 @@ def agent_research_stream(
             return
 
         if not turn_result:
+            elapsed_ms = int((time.time() - start_time) * 1000)
+            log_request(
+                question=question,
+                latency_ms=elapsed_ms,
+                input_tokens=total_input,
+                output_tokens=total_output,
+                tool_calls=all_tool_calls,
+                iterations=iteration + 1,
+                error="Stream ended without completion",
+            )
             yield _sse(
                 {
                     "type": "error",
@@ -462,6 +515,15 @@ def agent_research_stream(
                     "citations": all_citations,
                     "is_grounded": bool(all_citations),
                 }
+            )
+            elapsed_ms = int((time.time() - start_time) * 1000)
+            log_request(
+                question=question,
+                latency_ms=elapsed_ms,
+                input_tokens=total_input,
+                output_tokens=total_output,
+                tool_calls=all_tool_calls,
+                iterations=iteration + 1,
             )
             yield _sse(
                 {
@@ -544,6 +606,16 @@ def agent_research_stream(
             )
             continue
 
+        elapsed_ms = int((time.time() - start_time) * 1000)
+        log_request(
+            question=question,
+            latency_ms=elapsed_ms,
+            input_tokens=total_input,
+            output_tokens=total_output,
+            tool_calls=all_tool_calls,
+            iterations=iteration + 1,
+            error=f"Unexpected stop: {stop_reason}",
+        )
         yield _sse(
             {
                 "type": "error",
@@ -552,6 +624,16 @@ def agent_research_stream(
         )
         return
 
+    elapsed_ms = int((time.time() - start_time) * 1000)
+    log_request(
+        question=question,
+        latency_ms=elapsed_ms,
+        input_tokens=total_input,
+        output_tokens=total_output,
+        tool_calls=all_tool_calls,
+        iterations=MAX_ITERATIONS,
+        error="Agent reached maximum iterations",
+    )
     yield _sse(
         {
             "type": "error",

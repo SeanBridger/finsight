@@ -31,6 +31,12 @@ function RootLayout() {
           >
             Documents
           </Link>
+          <Link
+            to="/admin"
+            className="rounded-md px-3 py-1.5 text-sm font-medium text-gray-600 hover:bg-gray-100 [&.active]:bg-blue-50 [&.active]:text-blue-700"
+          >
+            Admin
+          </Link>
         </nav>
       </header>
       <Outlet />

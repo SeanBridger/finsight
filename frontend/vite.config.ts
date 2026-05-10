@@ -14,6 +14,8 @@ export default defineConfig({
       '/chat': 'http://localhost:8000',
       '/health': 'http://localhost:8000',
       '/sessions': 'http://localhost:8000',
+      '/metrics': 'http://localhost:8000',
+      '/guardrail': 'http://localhost:8000',
     },
   },
 })

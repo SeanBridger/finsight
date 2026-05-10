@@ -1,5 +1,7 @@
 import { createRoute, createRouter } from "@tanstack/react-router";
 import { rootRoute } from "./routes/__root";
+
+import AdminPage from "./pages/AdminPage";
 import { ChatPage } from "./pages/ChatPage";
 import { DocumentsPage } from "./pages/DocumentsPage";
 
@@ -15,7 +17,13 @@ const documentsRoute = createRoute({
   component: DocumentsPage,
 });
 
-const routeTree = rootRoute.addChildren([indexRoute, documentsRoute]);
+const adminRoute = createRoute({
+  getParentRoute: () => rootRoute,
+  path: "/admin",
+  component: AdminPage,
+});
+
+const routeTree = rootRoute.addChildren([indexRoute, documentsRoute, adminRoute]);
 
 export const router = createRouter({ routeTree });
 

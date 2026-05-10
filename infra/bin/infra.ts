@@ -30,6 +30,7 @@ const compute = new ComputeStack(app, 'FinsightCompute', {
   documentsBucket: data.documentsBucket,
   documentMetadataTable: data.documentMetadataTable,
   chatHistoryTable: data.chatHistoryTable,
+  metricsTable: data.metricsTable,
   knowledgeBaseId: knowledgeBase.knowledgeBaseId,
   dataSourceId: knowledgeBase.dataSourceId,
   guardrailId: guardrail.guardrailId,

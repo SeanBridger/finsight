@@ -8,6 +8,7 @@ export class DataStack extends cdk.Stack {
   public readonly documentsBucket: s3.Bucket;
   public readonly documentMetadataTable: dynamodb.Table;
   public readonly chatHistoryTable: dynamodb.Table;
+  public readonly metricsTable: dynamodb.Table;
 
   constructor(scope: Construct, id: string, props?: cdk.StackProps) {
     super(scope, id, props);
@@ -56,6 +57,14 @@ export class DataStack extends cdk.Stack {
       billingMode: dynamodb.BillingMode.PAY_PER_REQUEST,
       pointInTimeRecoverySpecification: { pointInTimeRecoveryEnabled: true },
       removalPolicy: cdk.RemovalPolicy.DESTROY,
+    });
+
+    this.metricsTable = new dynamodb.Table(this, 'MetricsTable', {
+      tableName: `${CONFIG.projectName}-metrics`,
+      partitionKey: { name: 'requestId', type: dynamodb.AttributeType.STRING },
+      billingMode: dynamodb.BillingMode.PAY_PER_REQUEST,
+      removalPolicy: cdk.RemovalPolicy.DESTROY,
+      timeToLiveAttribute: 'ttl',
     });
   }
 }
