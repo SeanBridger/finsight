@@ -16,6 +16,7 @@ import boto3
 from boto3.dynamodb.conditions import Key
 
 logger = logging.getLogger(__name__)
+_cw_client = None
 
 AWS_REGION = os.environ.get("AWS_DEFAULT_REGION", os.environ.get("AWS_REGION", "us-east-1"))
 METRICS_TABLE = os.environ.get("METRICS_TABLE", "finsight-metrics")
@@ -91,6 +92,16 @@ def log_request(
         _get_table().put_item(Item=item)
     except Exception:
         logger.exception("Failed to log metrics")
+
+    # Publish to CloudWatch for alarm evaluation
+    _publish_cloudwatch_metrics(
+        latency_ms=latency_ms,
+        total_cost=float(total_cost),
+        input_tokens=input_tokens,
+        output_tokens=output_tokens,
+        error=bool(error),
+        guardrail_blocked=guardrail_blocked,
+    )
 
 
 def get_metrics(days: int = 7, limit: int = 200) -> dict:
@@ -234,3 +245,60 @@ class RequestTimer:
             error=self.error,
         )
         return False  # Don't suppress exceptions
+
+
+def _get_cw_client():
+    global _cw_client
+    if _cw_client is None:
+        _cw_client = boto3.client("cloudwatch", region_name=AWS_REGION)
+    return _cw_client
+
+
+def _publish_cloudwatch_metrics(
+    latency_ms: int,
+    total_cost: float,
+    input_tokens: int,
+    output_tokens: int,
+    error: bool,
+    guardrail_blocked: bool,
+) -> None:
+    """Push per-request metrics to CloudWatch for alarm evaluation."""
+    try:
+        namespace = "FinSight"
+        _get_cw_client().put_metric_data(
+            Namespace=namespace,
+            MetricData=[
+                {
+                    "MetricName": "RequestLatencyMs",
+                    "Value": latency_ms,
+                    "Unit": "Milliseconds",
+                },
+                {
+                    "MetricName": "RequestCostUSD",
+                    "Value": total_cost,
+                    "Unit": "None",
+                },
+                {
+                    "MetricName": "InputTokens",
+                    "Value": input_tokens,
+                    "Unit": "Count",
+                },
+                {
+                    "MetricName": "OutputTokens",
+                    "Value": output_tokens,
+                    "Unit": "Count",
+                },
+                {
+                    "MetricName": "ErrorCount",
+                    "Value": 1 if error else 0,
+                    "Unit": "Count",
+                },
+                {
+                    "MetricName": "GuardrailBlockCount",
+                    "Value": 1 if guardrail_blocked else 0,
+                    "Unit": "Count",
+                },
+            ],
+        )
+    except Exception:
+        logger.exception("Failed to publish CloudWatch metrics")

@@ -97,6 +97,13 @@ export class ComputeStack extends cdk.Stack {
     chatHistoryTable.grantReadWriteData(taskRole);
     metricsTable.grantReadWriteData(taskRole);
 
+    // CloudWatch — publish custom metrics for alarms
+    taskRole.addToPolicy(new iam.PolicyStatement({
+      effect: iam.Effect.ALLOW,
+      actions: ['cloudwatch:PutMetricData'],
+      resources: ['*'],  // PutMetricData doesn't support resource-level restrictions
+    }));
+
     // Lambda log group — explicit so CDK owns it and destroys it cleanly
     const syncLogGroup = new logs.LogGroup(this, 'SyncFunctionLogGroup', {
       logGroupName: '/aws/lambda/finsight-kb-sync',

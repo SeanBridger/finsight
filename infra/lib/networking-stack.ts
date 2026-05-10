@@ -92,6 +92,13 @@ export class NetworkingStack extends cdk.Stack {
       subnets: privateSubnets,
     });
 
+    new ec2.InterfaceVpcEndpoint(this, 'CloudWatchMonitoringEndpoint', {
+      vpc: this.vpc,
+      service: ec2.InterfaceVpcEndpointAwsService.CLOUDWATCH_MONITORING,
+      privateDnsEnabled: true,
+      subnets: privateSubnets,
+    });
+
     new ec2.InterfaceVpcEndpoint(this, 'LambdaEndpoint', {
       vpc: this.vpc,
       service: ec2.InterfaceVpcEndpointAwsService.LAMBDA,
