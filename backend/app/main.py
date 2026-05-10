@@ -11,6 +11,7 @@ from app.documents import (
     list_documents,
     sync_knowledge_base,
 )
+from app.eval_store import get_latest_eval
 from app.guardrail_test import test_guardrail
 from app.metrics import get_metrics
 from app.sessions import get_session, list_sessions, save_session
@@ -191,3 +192,11 @@ async def guardrail_test(request: dict):
 @app.get("/metrics")
 async def metrics_endpoint(days: int = 7):
     return get_metrics(days=days)
+
+
+@app.get("/eval/latest")
+async def eval_latest_endpoint():
+    result = get_latest_eval()
+    if not result:
+        return {"eval_id": None}
+    return result

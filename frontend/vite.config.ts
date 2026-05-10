@@ -16,6 +16,7 @@ export default defineConfig({
       '/sessions': 'http://localhost:8000',
       '/metrics': 'http://localhost:8000',
       '/guardrail': 'http://localhost:8000',
+      '/eval': 'http://localhost:8000',
     },
   },
 })

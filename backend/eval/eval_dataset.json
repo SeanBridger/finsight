@@ -1,0 +1,107 @@
+[
+  {
+    "id": "hsbc-cet1",
+    "question": "What was HSBC's CET1 ratio as of December 2024?",
+    "expected_answer": "14.9%",
+    "company": "HSBC",
+    "category": "metric_extraction"
+  },
+  {
+    "id": "barclays-cet1",
+    "question": "What was Barclays' CET1 ratio at the end of 2024?",
+    "expected_answer": "13.6%",
+    "company": "Barclays",
+    "category": "metric_extraction"
+  },
+  {
+    "id": "lloyds-cet1",
+    "question": "What was Lloyds Banking Group's CET1 ratio in 2024?",
+    "expected_answer": "13.5%",
+    "company": "Lloyds",
+    "category": "metric_extraction"
+  },
+  {
+    "id": "natwest-cet1",
+    "question": "What was NatWest's CET1 ratio at the end of 2024?",
+    "expected_answer": "13.6%",
+    "company": "NatWest",
+    "category": "metric_extraction"
+  },
+  {
+    "id": "hsbc-nim",
+    "question": "What was HSBC's net interest margin in 2024?",
+    "expected_answer": "1.56% or 1.6%",
+    "company": "HSBC",
+    "category": "metric_extraction"
+  },
+  {
+    "id": "barclays-nim",
+    "question": "What was Barclays' net interest margin in 2024?",
+    "expected_answer": "Approximately 3.0% or reported in their annual report",
+    "company": "Barclays",
+    "category": "metric_extraction"
+  },
+  {
+    "id": "hsbc-risk-factors",
+    "question": "What are the main risk factors mentioned in HSBC's 2024 annual report?",
+    "expected_answer": "Should mention geopolitical risks, credit risk, regulatory risk, climate risk, or operational risk",
+    "company": "HSBC",
+    "category": "section_retrieval"
+  },
+  {
+    "id": "lloyds-dividends",
+    "question": "What was Lloyds' total dividend per share for 2024?",
+    "expected_answer": "Should mention the dividend amount in pence per share",
+    "company": "Lloyds",
+    "category": "metric_extraction"
+  },
+  {
+    "id": "comparison-cet1",
+    "question": "Compare the CET1 ratios of HSBC, Barclays, and Lloyds for 2024. Which bank has the highest?",
+    "expected_answer": "HSBC has the highest at approximately 14.9%, followed by Barclays and Lloyds around 13.5-13.6%",
+    "company": "multi",
+    "category": "comparison"
+  },
+  {
+    "id": "hsbc-revenue",
+    "question": "What was HSBC's total revenue or net operating income in 2024?",
+    "expected_answer": "Should cite a specific revenue figure from the annual report",
+    "company": "HSBC",
+    "category": "metric_extraction"
+  },
+  {
+    "id": "barclays-provisions",
+    "question": "What were Barclays' credit impairment charges or provisions in 2024?",
+    "expected_answer": "Should mention the provision/impairment charge amount",
+    "company": "Barclays",
+    "category": "metric_extraction"
+  },
+  {
+    "id": "natwest-strategy",
+    "question": "What is NatWest's strategic focus or key priorities as described in their latest annual report?",
+    "expected_answer": "Should mention growth strategy, digital transformation, or key strategic priorities",
+    "company": "NatWest",
+    "category": "section_retrieval"
+  },
+  {
+    "id": "not-in-docs",
+    "question": "What was Goldman Sachs' CET1 ratio in 2024?",
+    "expected_answer": "Should acknowledge this information is not in the available documents",
+    "company": "none",
+    "category": "not_found"
+  },
+  {
+    "id": "hsbc-employees",
+    "question": "How many employees does HSBC have according to their 2024 annual report?",
+    "expected_answer": "Should mention the headcount figure from the report",
+    "company": "HSBC",
+    "category": "metric_extraction"
+  },
+  {
+    "id": "comparison-nim",
+    "question": "Compare the net interest margins across HSBC, Barclays, and Lloyds. Which trends are notable?",
+    "expected_answer": "Should compare NIM figures and note any year-over-year trends",
+    "company": "multi",
+    "category": "comparison"
+  }
+]

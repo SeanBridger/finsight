@@ -15,6 +15,7 @@
     "lint:frontend:fix": "cd frontend && npx eslint --fix . && npx prettier --write src/",
     "lint": "npm run lint:infra && npm run lint:backend && npm run lint:frontend",
     "lint:fix": "npm run lint:infra:fix && npm run lint:backend:fix && npm run lint:frontend:fix",
-    "predeploy": "npm test"
+    "predeploy": "npm test",
+    "eval": "cd backend && PYTHONPATH=. ALB_URL=${ALB_URL} python -m eval.run_eval"
   }
 }

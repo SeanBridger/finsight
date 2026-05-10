@@ -1,0 +1,365 @@
+{
+  "timestamp": "2026-05-10T14:24:34.726081+00:00",
+  "dataset_size": 15,
+  "avg_relevance": 4.4,
+  "avg_faithfulness": 4.13,
+  "category_scores": {
+    "metric_extraction": {
+      "count": 10,
+      "avg_relevance": 4.5,
+      "avg_faithfulness": 3.8
+    },
+    "section_retrieval": {
+      "count": 2,
+      "avg_relevance": 5.0,
+      "avg_faithfulness": 4.5
+    },
+    "comparison": {
+      "count": 2,
+      "avg_relevance": 3.0,
+      "avg_faithfulness": 5.0
+    },
+    "not_found": {
+      "count": 1,
+      "avg_relevance": 5.0,
+      "avg_faithfulness": 5.0
+    }
+  },
+  "results": [
+    {
+      "id": "hsbc-cet1",
+      "question": "What was HSBC's CET1 ratio as of December 2024?",
+      "expected": "14.9%",
+      "category": "metric_extraction",
+      "answer": "Based on the data retrieved, HSBC's **CET1 ratio as of 31 December 2024 was 14.9%**.\n\nThis is confirmed in HSBC's Annual Report and Accounts 2025, which notes that the CET1 ratio \"remained at 14.9%\" in 2025, reflecting that the ratio was also 14.9% at end-2024. The report attributes the stability to an increase in risk-weighted assets (RWAs) \u2014 driven by foreign currency translation differences and asset size movements \u2014 being offset by capital generation net of distributions.\n\n[Source: HSBC Annual Report and Accounts 2025, Strategic Report / Financial Review]",
+      "relevance": 5,
+      "faithfulness": 5,
+      "reasoning": "The system directly answers the question with the exact expected answer of 14.9% for HSBC's CET1 ratio as of December 2024. The response is well-supported with specific reference to HSBC's Annual Report and Accounts 2025, and provides additional context about the stability of the ratio and the factors contributing to it. The answer is precise, complete, and fully addresses what was asked.",
+      "latency_s": 5.8,
+      "tool_calls": [
+        "extract_metric"
+      ],
+      "token_usage": {
+        "input": 4548,
+        "output": 248
+      },
+      "guardrail_blocked": false
+    },
+    {
+      "id": "barclays-cet1",
+      "question": "What was Barclays' CET1 ratio at the end of 2024?",
+      "expected": "13.6%",
+      "category": "metric_extraction",
+      "answer": "Barclays' CET1 ratio at the end of **2024 was 13.6%**.\n\nThis figure is referenced directly in the 2025 Annual Report, which notes that the CET1 ratio *\"increased to 14.3% (December 2024: 13.6%)\"* as of year-end 2025. [Source: Barclays Annual Report 2025, Capital Adequacy section]",
+      "relevance": 5,
+      "faithfulness": 5,
+      "reasoning": "The system directly answers the question by stating Barclays' CET1 ratio at the end of 2024 was 13.6%, which matches the expected answer exactly. The answer is well-supported with a specific reference to the source document (Barclays Annual Report 2025, Capital Adequacy section), and the contextual information about the 2025 figure (14.3%) actually strengthens the credibility by showing the comparison year-over-year. The answer is precise, complete, and fully grounded in the cited source.",
+      "latency_s": 4.2,
+      "tool_calls": [
+        "extract_metric"
+      ],
+      "token_usage": {
+        "input": 4689,
+        "output": 200
+      },
+      "guardrail_blocked": false
+    },
+    {
+      "id": "lloyds-cet1",
+      "question": "What was Lloyds Banking Group's CET1 ratio in 2024?",
+      "expected": "13.5%",
+      "category": "metric_extraction",
+      "answer": "The data is now clear. Lloyds Banking Group's **CET1 ratio at 31 December 2024 was 13.5%** (pro forma).\n\n> *\"The Group's pro forma CET1 capital ratio at 31 December 2025 was 13.2% (31 December 2024: **13.5%** pro forma).\"*\n> \u2014 [Source: Lloyds Banking Group Annual Report and Accounts 2025, Capital Adequacy section]\n\nAdditionally, the CET1 capital resources (in absolute terms) stood at **\u00a331,979 million** at 31 December 2024, before moving to \u00a332,930 million by end of 2025. [Source: Lloyds Banking Group Annual Report and Accounts 2025, Movements in CET1 Capital Resources]",
+      "relevance": 5,
+      "faithfulness": 5,
+      "reasoning": "The answer directly and fully addresses the question by providing the exact CET1 ratio of 13.5% for Lloyds Banking Group at 31 December 2024, which matches the expected answer precisely. The system also provides supporting context including the pro forma designation, comparative 2025 data, and absolute capital figures with proper source attribution to the Annual Report and Accounts. The answer is well-structured and comprehensive without being excessive.",
+      "latency_s": 11.0,
+      "tool_calls": [
+        "extract_metric",
+        "search_documents",
+        "search_documents"
+      ],
+      "token_usage": {
+        "input": 13319,
+        "output": 532
+      },
+      "guardrail_blocked": false
+    },
+    {
+      "id": "natwest-cet1",
+      "question": "What was NatWest's CET1 ratio at the end of 2024?",
+      "expected": "13.6%",
+      "category": "metric_extraction",
+      "answer": "NatWest's CET1 ratio at the end of 2024 was **13.6%**.\n\nThis is sourced from the Capital Adequacy Ratios table in the Risk and Capital Management section of the NatWest Group 2025 Annual Report, which presents the 2024 period-end figure alongside the 2025 figure of 14.0% for comparison. [Source: natwest-annual-report-2025.pdf, Capital, liquidity and funding risk \u2014 Key metrics]\n\nFor additional context, NatWest's total RWAs at end-2024 stood at **\u00a3183,221m**, with CET1 capital of **\u00a324.9bn**.",
+      "relevance": 5,
+      "faithfulness": 5,
+      "reasoning": "The answer directly and fully addresses the question by providing the exact CET1 ratio of 13.6% for NatWest at the end of 2024, which matches the expected answer. The response includes proper sourcing from the NatWest Group 2025 Annual Report and provides additional supporting context (RWAs and CET1 capital figures) that enhance credibility. The information is well-grounded and specific.",
+      "latency_s": 10.0,
+      "tool_calls": [
+        "extract_metric",
+        "search_documents",
+        "search_documents"
+      ],
+      "token_usage": {
+        "input": 13782,
+        "output": 402
+      },
+      "guardrail_blocked": false
+    },
+    {
+      "id": "hsbc-nim",
+      "question": "What was HSBC's net interest margin in 2024?",
+      "expected": "1.56% or 1.6%",
+      "category": "metric_extraction",
+      "answer": "The source data provides the components to derive HSBC's net interest margin for 2024. Here's what the filing reports:\n\n**HSBC Net Interest Margin \u2013 Full Year 2024**\n\n| Metric | 2024 | 2023 |\n|---|---|---|\n| Gross Interest Yield | 5.17% | 4.67% |\n| Less: Gross Interest Payable | (3.95%) | (3.47%) |\n| **Net Interest Spread** | **1.22%** | **1.20%** |\n| Net Interest Income | $32,733m | $35,796m |\n| Average Interest-Earning Assets | $2,099,285m | $2,161,746m |\n\nThe filing presents the **net interest spread** (gross yield minus cost of funds) as **1.22%** for full-year 2024, up slightly from 1.20% in 2023. The gross interest yield was 5.17% against a gross interest payable of 3.95%.\n\n> Note: The filing does not explicitly label a single \"net interest margin\" figure separately from the net interest spread. The 1.22% net interest spread is the closest equivalent metric disclosed.\n\n[Source: HSBC Annual Report and Accounts 2025, Income Statement Commentary \u2013 Net Interest Income table, p.68]",
+      "relevance": 2,
+      "faithfulness": 2,
+      "reasoning": "The system provides detailed calculations but fails to answer the question asked. The expected answer is 1.56% or 1.6% (net interest margin), but the system reports 1.22% (net interest spread) instead. While the system acknowledges these are different metrics, it presents the spread as 'the closest equivalent' rather than finding or calculating the actual NIM. NIM is calculated as Net Interest Income divided by Average Interest-Earning Assets ($32,733m / $2,099,285m = 1.56%), which matches the expected answer. The system had the necessary data but failed to perform this standard calculation, instead defaulting to an incorrect metric. This is a significant error in financial analysis where NIM and NIS are distinct and important measures.",
+      "latency_s": 10.3,
+      "tool_calls": [
+        "extract_metric",
+        "search_documents"
+      ],
+      "token_usage": {
+        "input": 8686,
+        "output": 471
+      },
+      "guardrail_blocked": false
+    },
+    {
+      "id": "barclays-nim",
+      "question": "What was Barclays' net interest margin in 2024?",
+      "expected": "Approximately 3.0% or reported in their annual report",
+      "category": "metric_extraction",
+      "answer": "Based on the data retrieved, here is Barclays' net interest margin (NIM) for 2024, broken down by segment:\n\n| Segment | Net Interest Income (\u00a3m) | Average Customer Assets (\u00a3m) | Net Interest Margin (%) |\n|---|---|---|---|\n| **Barclays UK** | 6,627 | 201,152 | **3.29%** |\n| **Barclays UK Corporate Bank** | 1,205* | 26,142* | \u2014 *(data truncated)* |\n\n[Source: Barclays PLC Annual Report 2025, Non-IFRS Performance Measures \u2013 Margins Analysis]\n\n**Key takeaway:** Barclays UK's net interest margin for 2024 was **3.29%**, up from 3.13% in 2023 and further improving to 3.63% in 2025. The data for the Barclays UK Corporate Bank segment was partially truncated in the source. If you need the full group-level or other segment NIMs, I can dig further into the filing.",
+      "relevance": 4,
+      "faithfulness": 3,
+      "reasoning": "The answer directly addresses the question about Barclays' net interest margin in 2024 and provides a specific figure (3.29% for Barclays UK segment). However, there are concerns: (1) The answer provides segment-level data rather than group-level NIM, which may not be what was asked; (2) The expected answer suggests ~3.0% or a general figure, but the system provides 3.29%, which is higher and segment-specific; (3) The citation to 'Barclays PLC Annual Report 2025' for 2024 data is plausible but the specific formatting and truncation note raise minor credibility concerns; (4) The additional claims about 2023 (3.13%) and 2025 (3.63%) figures are unverified and could be hallucinated. The core answer is relevant and appears grounded in a real source, but the segment-specific nature and unverified comparative figures introduce some faithfulness uncertainty.",
+      "latency_s": 7.0,
+      "tool_calls": [
+        "extract_metric"
+      ],
+      "token_usage": {
+        "input": 4656,
+        "output": 349
+      },
+      "guardrail_blocked": false
+    },
+    {
+      "id": "hsbc-risk-factors",
+      "question": "What are the main risk factors mentioned in HSBC's 2024 annual report?",
+      "expected": "Should mention geopolitical risks, credit risk, regulatory risk, climate risk, or operational risk",
+      "category": "section_retrieval",
+      "answer": "Based on the data retrieved from HSBC's filing, here is a structured overview of the main risk factors disclosed. Note that the available document is the **HSBC Annual Report and Accounts 2025** (covering the 2024 financial year-end period), sourced as `hsbc-annual-report-2025.pdf`.\n\n---\n\n## HSBC: Main Risk Factors\n\nHSBC categorises its risks into **\"Top Risks\"** (material, actively managed) and **\"Emerging Risks\"** (potential future impact, not yet under active management). Key risk areas include:\n\n---\n\n### 1. \ud83c\udfe6 Credit Risk\n> *\"Credit risk is the risk of financial loss if a customer or counterparty fails to meet an obligation under a contract. Credit risk arises principally from direct lending, trade finance and leasing.\"*\n\nHSBC faces losses from counterparty failure across both **retail and wholesale** portfolios. The Group Risk Committee received regular updates on the macroeconomic and policy landscape impacting credit risk. Total credit risk RWAs stood at **$687.0bn** at year-end.",
+      "relevance": 5,
+      "faithfulness": 5,
+      "reasoning": "The answer directly and comprehensively addresses the question by identifying and explaining the main risk factors from HSBC's 2024 annual report (presented as the 2025 report covering 2024 year-end). It covers all the expected risk categories mentioned in the expected answer: geopolitical risks, credit risk, regulatory/compliance risk (implied through cybersecurity and technology), climate risk, and operational risk (through technology/cybersecurity). The answer goes beyond the minimum by providing detailed explanations, specific examples (Russia-Ukraine war, US-China tensions), quantitative data ($687.0bn in credit risk RWAs), and proper source attribution. The information appears well-grounded in actual HSBC disclosures with direct quotes and specific document references.",
+      "latency_s": 27.2,
+      "tool_calls": [
+        "get_section",
+        "search_documents",
+        "search_documents"
+      ],
+      "token_usage": {
+        "input": 12362,
+        "output": 1320
+      },
+      "guardrail_blocked": false
+    },
+    {
+      "id": "lloyds-dividends",
+      "question": "What was Lloyds' total dividend per share for 2024?",
+      "expected": "Should mention the dividend amount in pence per share",
+      "category": "metric_extraction",
+      "answer": "Lloyds' **total ordinary dividend per share for 2024 was 2.90 pence**, comprising:\n\n| Component | Pence per Share |\n|---|---|\n| Final dividend (in respect of 2023, paid in 2024) | 1.84p |\n| Interim dividend (paid in 2024) | 1.06p |\n| **Total dividends paid during 2024** | **2.90p** |\n\nThis equated to a total cash outflow of **\u00a31,828 million** in dividends paid during the year.\n\n> [Source: Lloyds Banking Group Annual Report 2025, Dividends section]\n\nNote: The 2.90p reflects dividends *paid* in the 2024 calendar year. The full-year ordinary dividend *declared in respect of* the 2024 financial year (i.e., the 2024 interim of 1.06p + the 2024 final of 2.11p) totals **3.17 pence per share**.",
+      "relevance": 5,
+      "faithfulness": 4,
+      "reasoning": "The answer directly addresses the question by providing Lloyds' total dividend per share for 2024 (2.90p). It goes beyond the minimum requirement by breaking down the components and clarifying the distinction between dividends paid in 2024 versus declared for 2024 (3.17p). The answer is well-structured and comprehensive. The faithfulness score is 4 rather than 5 because while the primary figure (2.90p) appears reasonable and is properly sourced, the distinction between 'paid in 2024' versus 'declared for 2024' introduces some complexity that would benefit from independent verification. The note about the 3.17p figure for full-year declared dividends is helpful context but adds nuance that may or may not align with how the question was intended to be interpreted.",
+      "latency_s": 8.1,
+      "tool_calls": [
+        "extract_metric"
+      ],
+      "token_usage": {
+        "input": 4602,
+        "output": 340
+      },
+      "guardrail_blocked": false
+    },
+    {
+      "id": "comparison-cet1",
+      "question": "Compare the CET1 ratios of HSBC, Barclays, and Lloyds for 2024. Which bank has the highest?",
+      "expected": "HSBC has the highest at approximately 14.9%, followed by Barclays and Lloyds around 13.5-13.6%",
+      "category": "comparison",
+      "answer": "I now have all the data needed. The Lloyds 2024 CET1 ratio is confirmed as **13.5%** (pro forma), and the reported ratio at 31 Dec 2024 was **14.2%** (from the MREL table). The standard reported CET1 ratio for Lloyds at 31 Dec 2024 was **13.5%** on a pro forma basis. The filing also shows 14.2% in the MREL table context. Let me use the clearly stated figures:\n\n- **HSBC**: 14.9% (2024, referenced as prior year in 2025 report)\n- **Barclays**: 13.6% (December 2024, explicitly stated)\n- **Lloyds**: 13.5% pro forma / 14.2% reported (2024)\n\nThe most directly comparable figure for Lloyds is the **13.5% pro forma CET1 ratio** as stated in the capital risk section, which is the standard management disclosure. Here is the full comparison:\n\n---\n\n## CET1 Ratio Comparison \u2014 2024 (Year-End)\n\n| Bank | CET1 Ratio (31 Dec 2024) | Source |\n|---|---|---|\n| **HSBC** | **14.9%** | HSBC Annual Report 2025 (prior year comparative) |\n| Barclays | 13.6% | Barclays Annual Report 2025 (prior year comparative) |\n",
+      "relevance": 5,
+      "faithfulness": 5,
+      "reasoning": "The answer directly addresses the question by providing a clear comparison of CET1 ratios for all three banks (HSBC 14.9%, Barclays 13.6%, Lloyds 13.5%), correctly identifying HSBC as having the highest ratio. The figures match the expected answer precisely. The response goes beyond the basic requirement by providing context, sources, and additional analysis (year-on-year changes, basis point spreads, regulatory context). The system appropriately notes the pro forma vs. reported distinction for Lloyds while using the standard management metric for comparability. All claims are grounded in specific annual report references and the data is presented in an organized, transparent manner with proper caveats.",
+      "latency_s": 38.9,
+      "tool_calls": [
+        "extract_metric",
+        "extract_metric",
+        "extract_metric",
+        "search_documents",
+        "search_documents",
+        "search_documents",
+        "search_documents",
+        "search_documents"
+      ],
+      "token_usage": {
+        "input": 39087,
+        "output": 1995
+      },
+      "guardrail_blocked": false
+    },
+    {
+      "id": "hsbc-revenue",
+      "question": "What was HSBC's total revenue or net operating income in 2024?",
+      "expected": "Should cite a specific revenue figure from the annual report",
+      "category": "metric_extraction",
+      "answer": "Here is a summary of HSBC's revenue and net operating income for 2024:\n\n---\n\n### HSBC 2024 Revenue & Net Operating Income\n\n| Metric | 2024 | 2023 | Change |\n|---|---|---|---|\n| **Reported Revenue** | **$65,854m** | $66,058m | -0.3% |\n| **Reported Revenue excl. notable items** | **$67,434m** | $65,723m | +2.6% |\n| **Net Operating Income before ECL** | **$66,009m** | $65,040m | +1.5% |\n| **Net Operating Income (after ECL)** | **$62,617m** | $61,790m | +1.3% |\n\n**Key figures:**\n- **Reported Revenue: $65,854m** in 2024, marginally down from $66,058m in 2023. [Source: hsbc-annual-report-2025.pdf]\n- Excluding notable items (e.g. disposal gains, fair value movements), revenue was **$67,434m**, up from $65,723m in 2023. [Source: hsbc-annual-report-2025.pdf]\n- **Net operating income before ECL charges was $66,009m**, with net operating income after ECL of **$62,617m** (after $3,392m in credit loss charges). [Source: hsbc-annual-report-2025.pdf]\n\n> **Note:** The slight difference between \"report",
+      "relevance": 5,
+      "faithfulness": 2,
+      "reasoning": "The answer is highly relevant and directly addresses the question with specific 2024 figures for both total revenue ($65,854m reported) and net operating income ($62,617m after ECL, $66,009m before ECL). However, faithfulness is significantly compromised because the answer cites 'hsbc-annual-report-2025.pdf' as the source, which is problematic: (1) An 'annual-report-2025.pdf' would not exist in early 2024 or even mid-2024 when 2024 results would first be reported, (2) HSBC's 2024 annual report would typically be released in early 2025, not labeled as '2025.pdf', and (3) the specific figures cannot be verified without access to actual HSBC documents. The answer appears to contain plausible-sounding but potentially fabricated or hallucinated financial data with false source attribution, which is a critical failure for a RAG system.",
+      "latency_s": 10.6,
+      "tool_calls": [
+        "extract_metric",
+        "extract_metric"
+      ],
+      "token_usage": {
+        "input": 6002,
+        "output": 566
+      },
+      "guardrail_blocked": false
+    },
+    {
+      "id": "barclays-provisions",
+      "question": "What were Barclays' credit impairment charges or provisions in 2024?",
+      "expected": "Should mention the provision/impairment charge amount",
+      "category": "metric_extraction",
+      "answer": "Based on the data retrieved, here is a clear breakdown of Barclays' credit impairment charges for 2024:\n\n---\n\n### Barclays Credit Impairment Charges \u2013 2024\n\n**Total Credit Impairment Charge for 2024: \u00a31,982m**\n\n[Source: Barclays Annual Report 2025, Risk Performance \u2013 Credit Risk section]\n\n#### Breakdown by Portfolio (ECL Movements, Stage 1\u20133):\n\n| Portfolio | Stage 1 (\u00a3m) | Stage 2 (\u00a3m) | Stage 3 (\u00a3m) | Total (\u00a3m) |\n|---|---|---|---|---|\n| Retail mortgages | (7) | (3) | 4 | **(6)** |\n| Retail credit cards | 114 | (153) | 1,645 | **1,606** |\n| Retail other | 79 | (7) | 124 | **196** |\n| Corporate loans | (76) | (78) | 353 | **199** |\n| **ECL movements (excl. disposals/write-offs)** | **110** | **(241)** | **2,126** | **1,995** |\n\n#### Additional Components:\n\n| Item | \u00a3m |\n|---|---|\n| ECL on loan commitments & financial guarantees | (65) |\n| ECL on other financial assets | 5 |\n| ECL on debt securities at amortised cost | (4) |\n| Recoveries and reimbursements | (91) |\n| ECL charge on asset",
+      "relevance": 5,
+      "faithfulness": 4,
+      "reasoning": "The answer directly addresses the question by providing Barclays' credit impairment charges for 2024 (\u00a31,982m) with comprehensive supporting detail including portfolio breakdowns, stage analysis, and key drivers. The structure is clear and well-organized. Faithfulness is rated 4 rather than 5 because while the main figure and breakdowns appear credible and detailed, the specific source attribution to 'Barclays Annual Report 2025' cannot be independently verified from the prompt, and the comparison to 2025 figures introduces some uncertainty about whether all details are from verified sources. However, the level of specificity and internal consistency of the data suggests it is grounded in actual financial reporting rather than hallucinated.",
+      "latency_s": 15.9,
+      "tool_calls": [
+        "search_documents",
+        "extract_metric",
+        "search_documents"
+      ],
+      "token_usage": {
+        "input": 10530,
+        "output": 862
+      },
+      "guardrail_blocked": false
+    },
+    {
+      "id": "natwest-strategy",
+      "question": "What is NatWest's strategic focus or key priorities as described in their latest annual report?",
+      "expected": "Should mention growth strategy, digital transformation, or key strategic priorities",
+      "category": "section_retrieval",
+      "answer": "Here is a comprehensive overview of NatWest's strategic focus and key priorities as described in their **2025 Annual Report and Accounts**:\n\n---\n\n## NatWest Group: Strategic Focus & Key Priorities\n\n### \ud83c\udfaf Purpose & Ambition\n- **Purpose:** *\"The bank that turns possibilities into progress\"*\n- **Ambition:** *\"Succeeding with customers\"*\n\nNatWest's overarching strategy is built on **building enduring, trusted relationships with customers**, which connects its purpose to its ambition. [Source: natwest-annual-report-2025.pdf, Strategic Report \u2013 Our Strategy]\n\n---\n\n### \ud83d\udd11 Three Sharpened Strategic Priorities\n\nThe bank has refined its strategic focus around three core priorities for the period ahead:\n\n| Priority | Description |\n|---|---|\n| **1. Disciplined Growth** | Sustainably growing by building stronger and deeper relationships, whilst attracting new customers. All three business segments (Retail Banking, Private Banking & Wealth Management, and Commercial & Institutional) delivered broad-b",
+      "relevance": 5,
+      "faithfulness": 4,
+      "reasoning": "The answer directly and comprehensively addresses the question about NatWest's strategic focus and key priorities. It provides specific, well-organized information including the bank's purpose, three core strategic priorities (Disciplined Growth, Leveraging Simplification, Driving Impact), and concrete execution highlights. The answer cites the 2025 Annual Report as its source. However, the faithfulness score is 4 rather than 5 because: (1) the answer appears to cite a '2025 Annual Report' which may not yet exist depending on when this evaluation occurs, suggesting potential temporal inconsistency; (2) while the information appears plausible and well-structured, without independent verification of the specific metrics and initiatives mentioned (e.g., 20 million customers, 97% retention, Sainsbury's Bank integration details), there is minor uncertainty about complete accuracy; (3) the answer is cut off at the end ('positioning itself as a bank with a broader societal role beyond pure financial returns.---**In summary**, NatWest's strategy is centred on deepening customer relationships at scale, using technology-driven simplification to improv'), which suggests incomplete retrieval. Despite these minor issues, the answer is highly relevant and substantially grounded in what appears to be authentic strategic information.",
+      "latency_s": 21.9,
+      "tool_calls": [
+        "get_section",
+        "get_section",
+        "search_documents",
+        "search_documents"
+      ],
+      "token_usage": {
+        "input": 15260,
+        "output": 1065
+      },
+      "guardrail_blocked": false
+    },
+    {
+      "id": "not-in-docs",
+      "question": "What was Goldman Sachs' CET1 ratio in 2024?",
+      "expected": "Should acknowledge this information is not in the available documents",
+      "category": "not_found",
+      "answer": "The search did not return any data specific to **Goldman Sachs'** CET1 ratio. The results retrieved relate to Barclays and NatWest, suggesting that Goldman Sachs filings may not be available in the current document corpus.\n\nTo confirm what filings are available, I can check the full list of documents. Would you like me to do that? Alternatively, if you have a Goldman Sachs annual report or filing you'd like to add to the corpus, that would allow me to answer your question accurately.",
+      "relevance": 5,
+      "faithfulness": 5,
+      "reasoning": "The system correctly identified that the requested information (Goldman Sachs' CET1 ratio in 2024) is not available in the document corpus. Rather than hallucinating an answer, it transparently acknowledged the limitation, explained what was found instead (Barclays and NatWest data), and offered constructive next steps. This is the appropriate response for a 'not_found' category question.",
+      "latency_s": 5.5,
+      "tool_calls": [
+        "extract_metric"
+      ],
+      "token_usage": {
+        "input": 4492,
+        "output": 216
+      },
+      "guardrail_blocked": false
+    },
+    {
+      "id": "hsbc-employees",
+      "question": "How many employees does HSBC have according to their 2024 annual report?",
+      "expected": "Should mention the headcount figure from the report",
+      "category": "metric_extraction",
+      "answer": "Based on HSBC's filing, here is the employee data for **2024**:\n\n- **Total workforce (end of year):** ~**211,000 full-time employees** as at 31 December 2024.\n- **Average number of employees during 2024:** **220,928** across all business segments.\n\n**Key geographic centres of employment (end of 2024):** The report notes that by end of 2025, the main centres were India (~47,000), UK (~33,000), mainland China (~33,000), Hong Kong (~26,000), and Mexico (~16,000) \u2014 with the 2024 year-end figure being slightly higher at 211,000 total.\n\n**Average headcount by business segment in 2024:**\n\n| Segment | 2024 Avg. Employees |\n|---|---|\n| Corporate and Institutional Banking | 75,327 |\n| International Wealth and Premier Banking | 78,616 |\n| Hong Kong | 33,820 |\n| UK | 32,791 |\n| Corporate Centre | 374 |\n| **Total** | **220,928** |\n\n[Source: hsbc-annual-report-2025.pdf, Employees section & Average Persons Employed table]\n\n> **Note:** The data above is sourced from HSBC's **2025 Annual Report**, whic",
+      "relevance": 4,
+      "faithfulness": 3,
+      "reasoning": "The answer directly addresses the question about HSBC's employee count and provides specific figures (211,000 year-end and 220,928 average). However, there's a critical issue: the system acknowledges the data comes from the 2025 Annual Report (comparative 2024 figures) rather than the 2024 annual report as requested. The answer is relevant and mostly complete with detailed breakdowns by segment and geography, but the source discrepancy and the note about not retrieving a standalone 2024 report raises faithfulness concerns. The figures appear reasonable and internally consistent, but without verification against the actual 2024 report, some uncertainty remains about whether these are the exact figures the user sought.",
+      "latency_s": 9.9,
+      "tool_calls": [
+        "search_documents"
+      ],
+      "token_usage": {
+        "input": 4682,
+        "output": 403
+      },
+      "guardrail_blocked": false
+    },
+    {
+      "id": "comparison-nim",
+      "question": "Compare the net interest margins across HSBC, Barclays, and Lloyds. Which trends are notable?",
+      "expected": "Should compare NIM figures and note any year-over-year trends",
+      "category": "comparison",
+      "answer": "",
+      "relevance": 1,
+      "faithfulness": 5,
+      "reasoning": "The system provided no actual answer to evaluate - the 'Actual answer from the system' field is empty. While the system correctly categorized this as a 'comparison' question, it failed to provide any NIM data, figures, or trend analysis for HSBC, Barclays, and Lloyds. This represents a complete failure to address the question, making it irrelevant. However, the absence of an answer (rather than a hallucinated one) means it's not unfaithful - it simply indicates the system could not find or retrieve the necessary information, which is appropriate behavior for a RAG system when data is unavailable.",
+      "latency_s": 48.8,
+      "tool_calls": [
+        "extract_metric",
+        "extract_metric",
+        "extract_metric",
+        "search_documents",
+        "search_documents",
+        "search_documents",
+        "search_documents",
+        "search_documents",
+        "search_documents",
+        "search_documents",
+        "search_documents",
+        "search_documents",
+        "search_documents",
+        "search_documents",
+        "search_documents",
+        "search_documents",
+        "search_documents",
+        "search_documents",
+        "search_documents",
+        "search_documents",
+        "search_documents",
+        "search_documents",
+        "search_documents",
+        "calculate",
+        "calculate",
+        "calculate",
+        "search_documents",
+        "get_section",
+        "get_section",
+        "search_documents",
+        "search_documents"
+      ],
+      "token_usage": {
+        "input": 0,
+        "output": 0
+      },
+      "guardrail_blocked": false
+    }
+  ]
+}
