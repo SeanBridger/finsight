@@ -7,7 +7,7 @@ export interface Citation {
 
 export interface ToolCall {
   tool: string;
-  input: Record<string, string>;
+  input: Record<string, unknown>;
   result_summary: string;
   iteration: number;
 }
@@ -67,7 +67,7 @@ export type SSEEvent =
 
 export interface ActiveTool {
   tool: string;
-  input: Record<string, string>;
+  input: Record<string, unknown>;
 }
 
 export interface Message {

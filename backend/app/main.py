@@ -3,7 +3,8 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import StreamingResponse
 from pydantic import BaseModel
 
-from app.agent import agent_research, agent_research_stream
+from app.agent import agent_research
+from app.agent_stream import agent_research_stream
 from app.bedrock import chat, research_query, research_query_stream
 from app.documents import (
     confirm_upload,
@@ -12,7 +13,7 @@ from app.documents import (
     sync_knowledge_base,
 )
 from app.eval_store import get_latest_eval
-from app.guardrail_test import test_guardrail
+from app.guardrail_api import apply_guardrail
 from app.metrics import get_metrics
 from app.sessions import get_session, list_sessions, save_session
 
@@ -81,18 +82,29 @@ class ToolCall(BaseModel):
     iteration: int
 
 
+class AgentCitation(BaseModel):
+    source: str
+    relevance_score: float
+    text: str
+
+
 class AgentResponse(BaseModel):
     answer: str
     tool_calls: list[ToolCall]
-    citations: list[dict]
+    citations: list[AgentCitation]
     is_grounded: bool
     iterations: int
     token_usage: TokenUsage | None = None
 
 
+class HistoryMessage(BaseModel):
+    role: str
+    content: str
+
+
 class AgentRequest(BaseModel):
     message: str
-    history: list[dict] = []
+    history: list[HistoryMessage] = []
 
 
 @app.get("/health")
@@ -169,14 +181,14 @@ async def save_session_endpoint(request: SaveSessionRequest):
 @app.post("/research/agent", response_model=AgentResponse)
 async def agent_research_endpoint(request: AgentRequest):
     return AgentResponse(
-        **agent_research(request.message, request.history),
+        **agent_research(request.message, [h.model_dump() for h in request.history]),
     )
 
 
 @app.post("/research/agent/stream")
 async def agent_stream_endpoint(request: AgentRequest):
     return StreamingResponse(
-        agent_research_stream(request.message, request.history),
+        agent_research_stream(request.message, [h.model_dump() for h in request.history]),
         media_type="text/event-stream",
         headers={"Cache-Control": "no-cache", "X-Accel-Buffering": "no"},
     )
@@ -186,7 +198,7 @@ async def agent_stream_endpoint(request: AgentRequest):
 async def guardrail_test(request: dict):
     text = request.get("text", "")
     source = request.get("source", "INPUT")
-    return test_guardrail(text, source)
+    return apply_guardrail(text, source)
 
 
 @app.get("/metrics")

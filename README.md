@@ -71,12 +71,14 @@ An analyst uploads annual reports (HSBC, Barclays, Lloyds, NatWest) and asks res
 finsight/
 ├── backend/
 │   ├── app/
-│   │   ├── agent.py          # Agentic tool use loop with streaming
+│   │   ├── agent.py           # Non-streaming agentic research loop
+│   │   ├── agent_helpers.py   # Shared utilities: SSE, message building, Bedrock clients
+│   │   ├── agent_stream.py    # Streaming agentic research loop (ConverseStream)
 │   │   ├── bedrock.py         # Bedrock client, RAG config, system prompt
 │   │   ├── documents.py       # Document CRUD, presigned uploads, KB sync
 │   │   ├── eval_store.py      # Eval results storage in DynamoDB
 │   │   ├── guardrails.py      # Regex prompt injection detection
-│   │   ├── guardrail_test.py  # ApplyGuardrail API wrapper
+│   │   ├── guardrail_api.py   # ApplyGuardrail API wrapper
 │   │   ├── main.py            # FastAPI endpoints
 │   │   ├── metrics.py         # Per-request metrics logging & aggregation
 │   │   ├── sessions.py        # Conversation history persistence
@@ -89,25 +91,46 @@ finsight/
 │       └── test_guardrails.py # 56 adversarial tests (3 layers)
 ├── frontend/
 │   └── src/
-│       └── pages/
-│           ├── ChatPage.tsx       # Research chat with streaming & citations
-│           ├── DocumentsPage.tsx  # Document library & upload
-│           └── AdminPage.tsx      # Observability dashboard & eval results
+│       ├── components/
+│       │   ├── admin/
+│       │   │   ├── EvalResults.tsx      # RAG eval scores & per-question table
+│       │   │   ├── MetricsCharts.tsx    # Latency, cost, token, tool charts
+│       │   │   ├── RecentRequests.tsx   # Recent requests table
+│       │   │   ├── ScoreBar.tsx         # Colour-coded score bar
+│       │   │   └── StatCard.tsx         # Summary stat card
+│       │   ├── ChatInput.tsx
+│       │   ├── CitationDrawer.tsx
+│       │   ├── CitationPanel.tsx
+│       │   ├── MessageBubble.tsx
+│       │   ├── SessionSidebar.tsx
+│       │   └── UploadModal.tsx          # Document upload modal
+│       ├── hooks/
+│       │   └── useResearchStream.ts     # SSE streaming hook
+│       ├── pages/
+│       │   ├── AdminPage.tsx       # Observability dashboard (data fetching + composition)
+│       │   ├── ChatPage.tsx        # Research chat with streaming & citations
+│       │   └── DocumentsPage.tsx   # Document library
+│       ├── types/
+│       │   ├── admin.ts            # AdminPage interfaces
+│       │   └── research.ts         # Research & citation types
+│       └── utils/
+│           ├── api.ts              # VITE_API_URL base URL
+│           └── formatters.ts       # Cost, latency, and time formatters
 ├── infra/
 │   ├── bin/infra.ts
 │   └── lib/
-│       ├── networking-stack.ts    # VPC, subnets, PrivateLink endpoints
-│       ├── data-stack.ts          # S3, DynamoDB tables
+│       ├── networking-stack.ts     # VPC, subnets, PrivateLink endpoints
+│       ├── data-stack.ts           # S3, DynamoDB tables
 │       ├── knowledge-base-stack.ts # Bedrock KB + Pinecone data source
-│       ├── guardrail-stack.ts     # Bedrock Guardrail policies
-│       ├── compute-stack.ts       # ECS Fargate, ALB, Lambda, IAM
-│       ├── frontend-stack.ts      # S3, CloudFront, OAC
-│       ├── monitoring-stack.ts    # CloudWatch alarms, SNS alerts
-│       └── config.ts             # Account, region, model IDs
+│       ├── guardrail-stack.ts      # Bedrock Guardrail policies
+│       ├── compute-stack.ts        # ECS Fargate, ALB, Lambda, IAM
+│       ├── frontend-stack.ts       # S3, CloudFront, OAC
+│       ├── monitoring-stack.ts     # CloudWatch alarms, SNS alerts
+│       └── config.ts               # Account, region, model IDs
 ├── scripts/
 │   ├── deploy.sh
 │   └── destroy.sh
-└── package.json                   # Root scripts: deploy, destroy, test, lint, eval
+└── package.json                    # Root scripts: deploy, destroy, test, lint, eval
 ```
 
 ## Guardrails & Security

@@ -1,8 +1,7 @@
-"""Guardrail testing and trace utilities.
+"""Bedrock Guardrail API wrapper.
 
-Provides:
-1. Direct guardrail evaluation via ApplyGuardrail API (no model involved)
-2. Trace extraction from Converse responses to prove guardrail assessment
+Calls the ApplyGuardrail API to evaluate text against guardrail policies
+without invoking a model — used as layer 2 of the guardrail stack.
 """
 
 import logging
@@ -19,7 +18,7 @@ GUARDRAIL_ID = os.environ.get("GUARDRAIL_ID", "")
 GUARDRAIL_VERSION = os.environ.get("GUARDRAIL_VERSION", "")
 
 
-def test_guardrail(text: str, source: str = "INPUT") -> dict:
+def apply_guardrail(text: str, source: str = "INPUT") -> dict:
     """Evaluate text directly against the guardrail — no model involved.
 
     This calls the ApplyGuardrail API, which runs the guardrail
@@ -67,44 +66,6 @@ def test_guardrail(text: str, source: str = "INPUT") -> dict:
     except Exception as e:
         logger.exception("ApplyGuardrail failed")
         return {"error": str(e)}
-
-
-def extract_guardrail_trace(response: dict) -> dict | None:
-    """Extract guardrail assessment trace from a Converse response.
-
-    The trace shows which policies were evaluated, what was detected,
-    and what action was taken — even when the guardrail didn't block
-    (i.e. Claude's system prompt handled the refusal).
-
-    Returns None if no guardrail trace is present.
-    """
-    trace = response.get("trace", {})
-    guardrail_trace = trace.get("guardrail", {})
-
-    if not guardrail_trace:
-        return None
-
-    result = {
-        "action_reason": guardrail_trace.get("actionReason"),
-        "input_assessment": {},
-        "output_assessment": {},
-    }
-
-    # Input assessment — did the guardrail flag the user's input?
-    input_assessment = guardrail_trace.get("inputAssessment", {})
-    for key, assessment in input_assessment.items():
-        result["input_assessment"] = _extract_assessment(assessment)
-
-    # Output assessment — did the guardrail flag Claude's response?
-    output_assessments = guardrail_trace.get("outputAssessments", {})
-    for key, assessments in output_assessments.items():
-        if isinstance(assessments, list):
-            for assessment in assessments:
-                result["output_assessment"] = _extract_assessment(assessment)
-        else:
-            result["output_assessment"] = _extract_assessment(assessments)
-
-    return result
 
 
 def _extract_assessment(assessment: dict) -> dict:

@@ -146,9 +146,9 @@ GUARDRAIL_SHOULD_PASS = [
     "name, text", GUARDRAIL_SHOULD_BLOCK, ids=[i[0] for i in GUARDRAIL_SHOULD_BLOCK]
 )
 def test_guardrail_blocks(name: str, text: str):
-    from app.guardrail_test import test_guardrail
+    from app.guardrail_api import apply_guardrail
 
-    result = test_guardrail(text, "INPUT")
+    result = apply_guardrail(text, "INPUT")
     assert "error" not in result, f"API error: {result.get('error')}"
     assert result["blocked"], (
         f"Guardrail should have blocked {name!r} but action was {result['action']}"
@@ -161,9 +161,9 @@ def test_guardrail_blocks(name: str, text: str):
     "name, text", GUARDRAIL_SHOULD_PASS, ids=[i[0] for i in GUARDRAIL_SHOULD_PASS]
 )
 def test_guardrail_allows(name: str, text: str):
-    from app.guardrail_test import test_guardrail
+    from app.guardrail_api import apply_guardrail
 
-    result = test_guardrail(text, "INPUT")
+    result = apply_guardrail(text, "INPUT")
     assert "error" not in result, f"API error: {result.get('error')}"
     assert not result["blocked"], (
         f"Guardrail should have allowed {name!r} but it was blocked. "
@@ -187,9 +187,9 @@ GUARDRAIL_OUTPUT_SHOULD_BLOCK = [
     "name, text", GUARDRAIL_OUTPUT_SHOULD_BLOCK, ids=[i[0] for i in GUARDRAIL_OUTPUT_SHOULD_BLOCK]
 )
 def test_guardrail_blocks_output(name: str, text: str):
-    from app.guardrail_test import test_guardrail
+    from app.guardrail_api import apply_guardrail
 
-    result = test_guardrail(text, "OUTPUT")
+    result = apply_guardrail(text, "OUTPUT")
     assert "error" not in result, f"API error: {result.get('error')}"
     assert result["blocked"], (
         f"Guardrail should have blocked output {name!r} but action was {result['action']}"

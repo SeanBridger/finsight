@@ -14,17 +14,13 @@ const TOOL_LABELS: Record<string, string> = {
   generate_briefing: "Drafting briefing",
 };
 
-function formatToolInput(input: Record<string, string>): string {
+function formatToolInput(input: Record<string, unknown>): string {
   if (input.operation) {
     return [input.label, `${input.a} ${input.operation} ${input.b}`].filter(Boolean).join(" — ");
   }
-  const parts = [
-    input.company,
-    input.metric_name,
-    input.section_name,
-    input.query,
-    input.period,
-  ].filter(Boolean);
+  const parts = [input.company, input.metric_name, input.section_name, input.query, input.period]
+    .filter(Boolean)
+    .map(String);
   return parts.length > 0 ? parts.join(" · ") : "";
 }
 
