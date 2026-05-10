@@ -51,13 +51,19 @@ export interface ErrorEvent {
   message: string;
 }
 
+export interface GuardrailBlockedEvent {
+  type: "guardrail_blocked";
+  message: string;
+}
+
 export type SSEEvent =
   | CitationsEvent
   | DeltaEvent
   | ToolCallEvent
   | ToolResultEvent
   | DoneEvent
-  | ErrorEvent;
+  | ErrorEvent
+  | GuardrailBlockedEvent;
 
 export interface ActiveTool {
   tool: string;
@@ -74,6 +80,7 @@ export interface Message {
   toolCalls?: ToolCall[];
   toolsUsed?: boolean;
   isStreaming?: boolean;
+  isGuardrailBlocked?: boolean;
 }
 
 export interface Document {

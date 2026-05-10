@@ -18,14 +18,15 @@ export class DataStack extends cdk.Stack {
       blockPublicAccess: s3.BlockPublicAccess.BLOCK_ALL,
       versioned: true,
       enforceSSL: true,
-      removalPolicy: cdk.RemovalPolicy.RETAIN,
+      removalPolicy: cdk.RemovalPolicy.DESTROY,
+      autoDeleteObjects: true,
       cors: [
         {
           allowedMethods: [s3.HttpMethods.PUT, s3.HttpMethods.POST],
-          allowedOrigins: [
-            'https://di3wfr20hx7a2.cloudfront.net',
-            'http://localhost:5173',
-          ],
+          // Uploads use presigned URLs, so access is controlled by the
+          // signature. Keep CORS origin-agnostic to survive CloudFront
+          // distribution replacement during delete/redeploy cycles.
+          allowedOrigins: ['*'],
           allowedHeaders: ['*'],
           exposedHeaders: ['ETag'],
           maxAge: 300,
@@ -38,7 +39,7 @@ export class DataStack extends cdk.Stack {
       partitionKey: { name: 'documentId', type: dynamodb.AttributeType.STRING },
       billingMode: dynamodb.BillingMode.PAY_PER_REQUEST,
       pointInTimeRecoverySpecification: { pointInTimeRecoveryEnabled: true },
-      removalPolicy: cdk.RemovalPolicy.RETAIN,
+      removalPolicy: cdk.RemovalPolicy.DESTROY,
     });
 
     this.documentMetadataTable.addGlobalSecondaryIndex({
@@ -54,7 +55,7 @@ export class DataStack extends cdk.Stack {
       sortKey: { name: 'sessionId', type: dynamodb.AttributeType.STRING },
       billingMode: dynamodb.BillingMode.PAY_PER_REQUEST,
       pointInTimeRecoverySpecification: { pointInTimeRecoveryEnabled: true },
-      removalPolicy: cdk.RemovalPolicy.RETAIN,
+      removalPolicy: cdk.RemovalPolicy.DESTROY,
     });
   }
 }

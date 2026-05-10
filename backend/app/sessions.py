@@ -6,11 +6,12 @@ from decimal import Decimal
 import boto3
 
 logger = logging.getLogger(__name__)
+AWS_REGION = os.environ.get("AWS_DEFAULT_REGION", os.environ.get("AWS_REGION", "us-east-1"))
 
 TABLE = os.environ.get("CHAT_HISTORY_TABLE", "finsight-chat-history")
 USER_ID = "default"  # Hardcoded until Cognito is added
 
-dynamodb = boto3.resource("dynamodb", region_name="us-east-1")
+dynamodb = boto3.resource("dynamodb", region_name=AWS_REGION)
 table = dynamodb.Table(TABLE)
 
 

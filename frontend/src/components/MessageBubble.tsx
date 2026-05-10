@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { ShieldAlert } from "lucide-react";
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
 import type { ActiveTool, Citation, Message } from "../types/research";
@@ -15,9 +16,7 @@ const TOOL_LABELS: Record<string, string> = {
 
 function formatToolInput(input: Record<string, string>): string {
   if (input.operation) {
-    return [input.label, `${input.a} ${input.operation} ${input.b}`]
-      .filter(Boolean)
-      .join(" — ");
+    return [input.label, `${input.a} ${input.operation} ${input.b}`].filter(Boolean).join(" — ");
   }
   const parts = [
     input.company,
@@ -39,13 +38,22 @@ export function MessageBubble({ message, activeTool, onCitationClick }: Props) {
   const isUser = message.role === "user";
   const [showTools, setShowTools] = useState(false);
 
+  if (message.isGuardrailBlocked) {
+    return (
+      <div className="flex justify-start">
+        <div className="flex max-w-[75%] items-start gap-2 rounded-lg border border-amber-300 bg-amber-50 p-3 text-amber-900 dark:border-amber-700 dark:bg-amber-950 dark:text-amber-200">
+          <ShieldAlert className="mt-0.5 h-4 w-4 shrink-0" />
+          <p className="text-sm leading-relaxed whitespace-pre-wrap">{message.content}</p>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className={`flex ${isUser ? "justify-end" : "justify-start"}`}>
       <div
         className={`max-w-[75%] rounded-2xl px-4 py-3 ${
-          isUser
-            ? "bg-blue-600 text-white"
-            : "bg-white border border-gray-200 text-gray-900"
+          isUser ? "bg-blue-600 text-white" : "bg-white border border-gray-200 text-gray-900"
         }`}
       >
         <div className="text-sm leading-relaxed">
@@ -55,39 +63,25 @@ export function MessageBubble({ message, activeTool, onCitationClick }: Props) {
             <ReactMarkdown
               remarkPlugins={[remarkGfm]}
               components={{
-                p: ({ children }) => (
-                  <p className="mb-3 last:mb-0">{children}</p>
-                ),
-                strong: ({ children }) => (
-                  <strong className="font-semibold">{children}</strong>
-                ),
-                ul: ({ children }) => (
-                  <ul className="mb-3 ml-4 list-disc">{children}</ul>
-                ),
-                ol: ({ children }) => (
-                  <ol className="mb-3 ml-4 list-decimal">{children}</ol>
-                ),
+                p: ({ children }) => <p className="mb-3 last:mb-0">{children}</p>,
+                strong: ({ children }) => <strong className="font-semibold">{children}</strong>,
+                ul: ({ children }) => <ul className="mb-3 ml-4 list-disc">{children}</ul>,
+                ol: ({ children }) => <ol className="mb-3 ml-4 list-decimal">{children}</ol>,
                 li: ({ children }) => <li className="mb-1">{children}</li>,
                 hr: () => <hr className="my-4 border-gray-200" />,
                 table: ({ children }) => (
                   <div className="my-3 overflow-x-auto">
-                    <table className="w-full text-xs border-collapse">
-                      {children}
-                    </table>
+                    <table className="w-full text-xs border-collapse">{children}</table>
                   </div>
                 ),
-                thead: ({ children }) => (
-                  <thead className="bg-gray-50">{children}</thead>
-                ),
+                thead: ({ children }) => <thead className="bg-gray-50">{children}</thead>,
                 th: ({ children }) => (
                   <th className="border border-gray-200 px-3 py-1.5 text-left font-semibold">
                     {children}
                   </th>
                 ),
                 td: ({ children }) => (
-                  <td className="border border-gray-200 px-3 py-1.5">
-                    {children}
-                  </td>
+                  <td className="border border-gray-200 px-3 py-1.5">{children}</td>
                 ),
               }}
             >
@@ -98,9 +92,7 @@ export function MessageBubble({ message, activeTool, onCitationClick }: Props) {
           {message.isStreaming && !message.content && !activeTool && (
             <div className="flex items-center gap-2 py-2 text-xs text-gray-500">
               <span className="inline-block h-2 w-2 rounded-full bg-blue-400 animate-pulse" />
-              <span>
-                {message.toolsUsed ? "Generating answer…" : "Analysing question…"}
-              </span>
+              <span>{message.toolsUsed ? "Generating answer…" : "Analysing question…"}</span>
             </div>
           )}
 
@@ -109,8 +101,7 @@ export function MessageBubble({ message, activeTool, onCitationClick }: Props) {
               <span className="inline-block h-2 w-2 rounded-full bg-amber-400 animate-pulse" />
               <span>
                 {TOOL_LABELS[activeTool.tool] || activeTool.tool}
-                {formatToolInput(activeTool.input) &&
-                  ` — ${formatToolInput(activeTool.input)}`}
+                {formatToolInput(activeTool.input) && ` — ${formatToolInput(activeTool.input)}`}
               </span>
             </div>
           )}

@@ -1,16 +1,18 @@
 import json
 import logging
+import os
 from dataclasses import dataclass
 
 import boto3
 
 logger = logging.getLogger(__name__)
+AWS_REGION = os.environ.get("AWS_DEFAULT_REGION", os.environ.get("AWS_REGION", "us-east-1"))
 
 
 @dataclass(frozen=True)
 class RAGConfig:
-    knowledge_base_id: str = "KGISW1DO99"
-    chat_model: str = "us.anthropic.claude-sonnet-4-6"
+    knowledge_base_id: str = os.environ.get("KNOWLEDGE_BASE_ID", "")
+    chat_model: str = os.environ.get("CHAT_MODEL_ID", "us.anthropic.claude-sonnet-4-6")
     max_chunks: int = 3
     # Tuned empirically — below 0.3, chunks tend to be from unrelated sections
     # that share financial jargon. Above 0.5 is too aggressive and drops
@@ -20,8 +22,8 @@ class RAGConfig:
 
 config = RAGConfig()
 
-bedrock = boto3.client("bedrock-runtime", region_name="us-east-1")
-bedrock_kb = boto3.client("bedrock-agent-runtime", region_name="us-east-1")
+bedrock = boto3.client("bedrock-runtime", region_name=AWS_REGION)
+bedrock_kb = boto3.client("bedrock-agent-runtime", region_name=AWS_REGION)
 
 ANALYST_PERSONA = """\
 You are FinSight, an investment analyst copilot. Your role is to help \
@@ -58,6 +60,10 @@ def _retrieve(query: str) -> list[dict]:
     Returns pre-filtered results — anything below the relevance floor
     is dropped to avoid polluting the prompt with noise.
     """
+    if not config.knowledge_base_id:
+        logger.error("KNOWLEDGE_BASE_ID is not configured")
+        return []
+
     try:
         response = bedrock_kb.retrieve(
             knowledgeBaseId=config.knowledge_base_id,

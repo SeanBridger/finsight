@@ -27,6 +27,7 @@ export function useResearchStream() {
               isGrounded: m.isGrounded,
               tokenUsage: m.tokenUsage,
               toolCalls: m.toolCalls,
+              isGuardrailBlocked: m.isGuardrailBlocked,
             })),
           }),
         });
@@ -108,9 +109,7 @@ export function useResearchStream() {
             if (event.type === "tool_result") {
               setActiveTool(null);
               setMessages((prev) =>
-                prev.map((m) =>
-                  m.id === assistantId ? { ...m, toolsUsed: true } : m,
-                ),
+                prev.map((m) => (m.id === assistantId ? { ...m, toolsUsed: true } : m)),
               );
               continue;
             }
@@ -118,11 +117,29 @@ export function useResearchStream() {
             if (event.type === "error") {
               setMessages((prev) =>
                 prev.map((m) =>
-                  m.id === assistantId
-                    ? { ...m, content: event.message, isStreaming: false }
-                    : m,
+                  m.id === assistantId ? { ...m, content: event.message, isStreaming: false } : m,
                 ),
               );
+              continue;
+            }
+
+            if (event.type === "guardrail_blocked") {
+              setActiveTool(null);
+              setIsStreaming(false);
+              setMessages((prev) => {
+                const updated = prev.map((m) =>
+                  m.id === assistantId
+                    ? {
+                        ...m,
+                        content: event.message,
+                        isGuardrailBlocked: true,
+                        isStreaming: false,
+                      }
+                    : m,
+                );
+                finalMessages = updated;
+                return updated;
+              });
               continue;
             }
 
@@ -185,9 +202,7 @@ export function useResearchStream() {
     abortRef.current?.abort();
     setIsStreaming(false);
     setActiveTool(null);
-    setMessages((prev) =>
-      prev.map((m) => (m.isStreaming ? { ...m, isStreaming: false } : m)),
-    );
+    setMessages((prev) => prev.map((m) => (m.isStreaming ? { ...m, isStreaming: false } : m)));
   }, []);
 
   const loadSession = useCallback(async (id: string) => {

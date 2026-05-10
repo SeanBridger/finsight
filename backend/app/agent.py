@@ -7,18 +7,23 @@ and repeat until Claude produces a final answer.
 
 import json
 import logging
+import os
+import time
 
 import boto3
 
 from app.bedrock import ANALYST_PERSONA, RAGConfig
+from app.guardrail_test import test_guardrail
+from app.guardrails import validate_input
 from app.tools import TOOL_SPECS, execute_tool
 
 logger = logging.getLogger(__name__)
+AWS_REGION = os.environ.get("AWS_DEFAULT_REGION", os.environ.get("AWS_REGION", "us-east-1"))
 
 config = RAGConfig()
-bedrock = boto3.client("bedrock-runtime", region_name="us-east-1")
+bedrock = boto3.client("bedrock-runtime", region_name=AWS_REGION)
 
-MAX_ITERATIONS = 6
+MAX_ITERATIONS = 15
 
 _CONVERSE_PARAMS = {
     "system": [{"text": ANALYST_PERSONA}],
@@ -55,11 +60,6 @@ def _build_messages(
     question: str,
     history: list[dict],
 ) -> list[dict]:
-    """Build Converse messages from frontend chat history.
-
-    Prior turns give Claude context for follow-up questions like
-    "How does that compare to HSBC?" without restating the metric.
-    """
     messages = []
     for h in history:
         role = h.get("role", "user")
@@ -83,10 +83,6 @@ def _build_messages(
 def _process_tool_calls(
     assistant_message: dict,
 ) -> tuple[list[dict], list[dict]]:
-    """Execute all tool calls in an assistant message.
-
-    Returns (tool_results for Converse, tool_trace for frontend).
-    """
     tool_results = []
     tool_trace = []
 
@@ -136,7 +132,6 @@ def _collect_citations(
     result: dict,
     existing: list[dict],
 ) -> list[dict]:
-    """Deduplicate and collect source citations from tool results."""
     seen = {c["source"] for c in existing}
     new_citations = list(existing)
     for r in result.get("results", []):
@@ -156,10 +151,9 @@ def _collect_citations(
 def _consume_converse_stream(messages: list[dict]):
     """Consume one Bedrock ConverseStream turn.
 
-    Yields SSE events for text deltas as they arrive. After the
-    stream completes, yields one internal control event
-    (_bedrock_turn_complete) with the assembled message. The caller
-    must not forward that event to the browser.
+    Yields SSE events for text deltas as they arrive. A small sleep
+    after each delta forces the ASGI threadpool to flush each chunk
+    individually rather than batching rapid yields.
     """
     stream_response = _converse_stream(messages)
 
@@ -202,6 +196,7 @@ def _consume_converse_stream(messages: list[dict]):
                 text = delta["text"]
                 block["text"] = block.get("text", "") + text
                 yield _sse({"type": "delta", "text": text})
+                time.sleep(0.01)
 
             elif "toolUse" in delta:
                 tool_delta = delta["toolUse"]
@@ -268,6 +263,33 @@ def agent_research(
     question: str,
     history: list[dict] | None = None,
 ) -> dict:
+    is_valid, rejection = validate_input(question)
+    if not is_valid:
+        return {
+            "answer": rejection,
+            "tool_calls": [],
+            "citations": [],
+            "is_grounded": False,
+            "iterations": 0,
+            "token_usage": {"input": 0, "output": 0},
+            "guardrail_blocked": True,
+        }
+
+    guardrail_result = test_guardrail(question, "INPUT")
+    if guardrail_result.get("blocked"):
+        return {
+            "answer": guardrail_result.get(
+                "blocked_response",
+                "Blocked by guardrails.",
+            ),
+            "tool_calls": [],
+            "citations": [],
+            "is_grounded": False,
+            "iterations": 0,
+            "token_usage": {"input": 0, "output": 0},
+            "guardrail_blocked": True,
+        }
+
     messages = _build_messages(question, history or [])
     all_tool_calls = []
     all_citations = []
@@ -344,12 +366,38 @@ def agent_research_stream(
     question: str,
     history: list[dict] | None = None,
 ):
-    """Yields SSE events as the agent works.
+    is_valid, rejection = validate_input(question)
+    if not is_valid:
+        yield _sse({"type": "guardrail_blocked", "message": rejection})
+        yield _sse(
+            {
+                "type": "done",
+                "tool_calls": [],
+                "iterations": 0,
+                "token_usage": {"input": 0, "output": 0},
+                "guardrail_blocked": True,
+            }
+        )
+        return
 
-    Streams every Bedrock turn via converse_stream so the final
-    answer arrives token-by-token. Tool iterations yield tool_call
-    before execution so the frontend can show activity indicators.
-    """
+    guardrail_result = test_guardrail(question, "INPUT")
+    if guardrail_result.get("blocked"):
+        message = guardrail_result.get(
+            "blocked_response",
+            "This request was blocked by our safety guardrails.",
+        )
+        yield _sse({"type": "guardrail_blocked", "message": message})
+        yield _sse(
+            {
+                "type": "done",
+                "tool_calls": [],
+                "iterations": 0,
+                "token_usage": {"input": 0, "output": 0},
+                "guardrail_blocked": True,
+            }
+        )
+        return
+
     messages = _build_messages(question, history or [])
     all_tool_calls = []
     all_citations = []
@@ -360,6 +408,7 @@ def agent_research_stream(
         logger.info("Agent stream iteration %d", iteration + 1)
 
         turn_result = None
+        turn_deltas = []
 
         try:
             for sse_chunk in _consume_converse_stream(messages):
@@ -371,6 +420,8 @@ def agent_research_stream(
 
                 if event.get("type") == "_bedrock_turn_complete":
                     turn_result = event
+                elif event.get("type") == "delta":
+                    turn_deltas.append(sse_chunk)
                 else:
                     yield sse_chunk
 
@@ -402,6 +453,9 @@ def agent_research_stream(
         messages.append(assistant_message)
 
         if stop_reason == "end_turn":
+            for chunk in turn_deltas:
+                yield chunk
+                time.sleep(0.01)
             yield _sse(
                 {
                     "type": "citations",

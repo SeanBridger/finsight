@@ -30,12 +30,73 @@ export class NetworkingStack extends cdk.Stack {
     // Gateway endpoints — free, always-on
     // These route traffic to S3 and DynamoDB over AWS's internal network
     // instead of requiring internet access from private subnets
-    this.vpc.addGatewayEndpoint('S3Endpoint', {
+    this.vpc.addGatewayEndpoint('S3GatewayEndpoint', {
       service: ec2.GatewayVpcEndpointAwsService.S3,
     });
 
-    this.vpc.addGatewayEndpoint('DynamoDbEndpoint', {
+    this.vpc.addGatewayEndpoint('DynamoDbGatewayEndpoint', {
       service: ec2.GatewayVpcEndpointAwsService.DYNAMODB,
+    });
+
+    // ── Interface endpoints (PrivateLink) ──────────────────────────
+    // Moved here from ComputeStack so they're created once and never
+    // torn down/recreated. Eliminates DNS conflict race conditions.
+    // Cost: ~$0.01/hr each — pennies when idle, and they persist
+    // across compute stack deploys.
+
+    const privateSubnets = { subnetType: ec2.SubnetType.PRIVATE_ISOLATED };
+
+    new ec2.InterfaceVpcEndpoint(this, 'BedrockRuntimeEndpoint', {
+      vpc: this.vpc,
+      service: ec2.InterfaceVpcEndpointAwsService.BEDROCK_RUNTIME,
+      privateDnsEnabled: true,
+      subnets: privateSubnets,
+    });
+
+    new ec2.InterfaceVpcEndpoint(this, 'BedrockAgentRuntimeEndpoint', {
+      vpc: this.vpc,
+      service: new ec2.InterfaceVpcEndpointService(
+        `com.amazonaws.${CONFIG.region}.bedrock-agent-runtime`, 443
+      ),
+      privateDnsEnabled: true,
+      subnets: privateSubnets,
+    });
+
+    new ec2.InterfaceVpcEndpoint(this, 'BedrockAgentEndpoint', {
+      vpc: this.vpc,
+      service: new ec2.InterfaceVpcEndpointService(
+        `com.amazonaws.${CONFIG.region}.bedrock-agent`, 443
+      ),
+      privateDnsEnabled: true,
+      subnets: privateSubnets,
+    });
+
+    new ec2.InterfaceVpcEndpoint(this, 'EcrDockerEndpoint', {
+      vpc: this.vpc,
+      service: ec2.InterfaceVpcEndpointAwsService.ECR_DOCKER,
+      privateDnsEnabled: true,
+      subnets: privateSubnets,
+    });
+
+    new ec2.InterfaceVpcEndpoint(this, 'EcrApiEndpoint', {
+      vpc: this.vpc,
+      service: ec2.InterfaceVpcEndpointAwsService.ECR,
+      privateDnsEnabled: true,
+      subnets: privateSubnets,
+    });
+
+    new ec2.InterfaceVpcEndpoint(this, 'CloudWatchLogsEndpoint', {
+      vpc: this.vpc,
+      service: ec2.InterfaceVpcEndpointAwsService.CLOUDWATCH_LOGS,
+      privateDnsEnabled: true,
+      subnets: privateSubnets,
+    });
+
+    new ec2.InterfaceVpcEndpoint(this, 'LambdaEndpoint', {
+      vpc: this.vpc,
+      service: ec2.InterfaceVpcEndpointAwsService.LAMBDA,
+      privateDnsEnabled: true,
+      subnets: privateSubnets,
     });
   }
 }

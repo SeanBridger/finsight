@@ -7,8 +7,17 @@ import { useResearchStream } from "../hooks/useResearchStream";
 import type { Citation } from "../types/research";
 
 export function ChatPage() {
-  const { messages, isStreaming, activeTool, sessionId, saveCount, send, stop, loadSession, newSession } =
-    useResearchStream();
+  const {
+    messages,
+    isStreaming,
+    activeTool,
+    sessionId,
+    saveCount,
+    send,
+    stop,
+    loadSession,
+    newSession,
+  } = useResearchStream();
   const [activeCitation, setActiveCitation] = useState<Citation | null>(null);
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
   const [backendDown, setBackendDown] = useState(false);

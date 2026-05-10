@@ -11,6 +11,7 @@ from app.documents import (
     list_documents,
     sync_knowledge_base,
 )
+from app.guardrail_test import test_guardrail
 from app.sessions import get_session, list_sessions, save_session
 
 app = FastAPI(title="FinSight API", version="0.1.0")
@@ -20,8 +21,8 @@ app.add_middleware(
     allow_origins=[
         "http://localhost:5173",
         "http://localhost:4173",
-        "https://di3wfr20hx7a2.cloudfront.net",
     ],
+    allow_origin_regex=r"https://[a-z0-9]+\.cloudfront\.net",
     allow_methods=["*"],
     allow_headers=["*"],
 )
@@ -99,19 +100,16 @@ async def health():
 
 @app.post("/chat", response_model=ChatResponse)
 async def chat_endpoint(request: ChatRequest):
-    """Direct Claude — no document retrieval."""
     return ChatResponse(response=chat(request.message))
 
 
 @app.post("/research", response_model=ResearchResponse)
 async def research_endpoint(request: ChatRequest):
-    """RAG-powered research against the document corpus."""
     return ResearchResponse(**research_query(request.message))
 
 
 @app.post("/research/stream")
 async def research_stream_endpoint(request: ChatRequest):
-    """Streaming RAG research — tokens sent as Server-Sent Events."""
     return StreamingResponse(
         research_query_stream(request.message),
         media_type="text/event-stream",
@@ -121,13 +119,11 @@ async def research_stream_endpoint(request: ChatRequest):
 
 @app.get("/documents/list")
 async def list_documents_endpoint():
-    """List all documents in the corpus."""
     return {"documents": list_documents()}
 
 
 @app.post("/documents/upload")
 async def upload_document_endpoint(request: UploadRequest):
-    """Generate a presigned URL for direct S3 upload."""
     return create_upload_url(
         filename=request.filename,
         company=request.company,
@@ -138,25 +134,21 @@ async def upload_document_endpoint(request: UploadRequest):
 
 @app.post("/documents/confirm")
 async def confirm_upload_endpoint(request: ConfirmUploadRequest):
-    """Confirm a document upload completed successfully."""
     return confirm_upload(request.document_id)
 
 
 @app.post("/documents/sync")
 async def sync_endpoint():
-    """Trigger Knowledge Base ingestion sync."""
     return sync_knowledge_base()
 
 
 @app.get("/sessions/list")
 async def list_sessions_endpoint():
-    """List all chat sessions."""
     return {"sessions": list_sessions()}
 
 
 @app.get("/sessions/{session_id}")
 async def get_session_endpoint(session_id: str):
-    """Load a chat session with all messages."""
     session = get_session(session_id)
     if not session:
         return {"error": "Session not found"}
@@ -165,7 +157,6 @@ async def get_session_endpoint(session_id: str):
 
 @app.post("/sessions/save")
 async def save_session_endpoint(request: SaveSessionRequest):
-    """Save or update a chat session."""
     return save_session(
         session_id=request.session_id,
         messages=request.messages,
@@ -175,7 +166,6 @@ async def save_session_endpoint(request: SaveSessionRequest):
 
 @app.post("/research/agent", response_model=AgentResponse)
 async def agent_research_endpoint(request: AgentRequest):
-    """Agentic research — Claude decides which tools to call."""
     return AgentResponse(
         **agent_research(request.message, request.history),
     )
@@ -183,12 +173,15 @@ async def agent_research_endpoint(request: AgentRequest):
 
 @app.post("/research/agent/stream")
 async def agent_stream_endpoint(request: AgentRequest):
-    """Streaming agentic research with tool call events."""
     return StreamingResponse(
         agent_research_stream(request.message, request.history),
         media_type="text/event-stream",
-        headers={
-            "Cache-Control": "no-cache",
-            "X-Accel-Buffering": "no",
-        },
+        headers={"Cache-Control": "no-cache", "X-Accel-Buffering": "no"},
     )
+
+
+@app.post("/guardrail/test")
+async def guardrail_test(request: dict):
+    text = request.get("text", "")
+    source = request.get("source", "INPUT")
+    return test_guardrail(text, source)

@@ -15,6 +15,10 @@ interface ComputeStackProps extends cdk.StackProps {
   documentsBucket: s3.IBucket;
   documentMetadataTable: dynamodb.ITable;
   chatHistoryTable: dynamodb.ITable;
+  knowledgeBaseId: string;
+  dataSourceId: string;
+  guardrailId: string;
+  guardrailVersion: string;
 }
 
 export class ComputeStack extends cdk.Stack {
@@ -25,62 +29,8 @@ export class ComputeStack extends cdk.Stack {
 
     const { vpc, documentsBucket, documentMetadataTable, chatHistoryTable } = props;
 
-    // PrivateLink endpoints — torn down with Fargate to save costs
-    new ec2.InterfaceVpcEndpoint(this, 'BedrockRuntimeEndpoint', {
-      vpc,
-      service: ec2.InterfaceVpcEndpointAwsService.BEDROCK_RUNTIME,
-      privateDnsEnabled: true,
-      subnets: { subnetType: ec2.SubnetType.PRIVATE_ISOLATED },
-    });
-
-    // Knowledge Base retrieval is a separate service from model inference
-    new ec2.InterfaceVpcEndpoint(this, 'BedrockAgentRuntimeEndpoint', {
-      vpc,
-      service: new ec2.InterfaceVpcEndpointService(
-        `com.amazonaws.${CONFIG.region}.bedrock-agent-runtime`, 443
-      ),
-      privateDnsEnabled: true,
-      subnets: { subnetType: ec2.SubnetType.PRIVATE_ISOLATED },
-    });
-
-    // Bedrock Agent control plane — needed for StartIngestionJob
-    new ec2.InterfaceVpcEndpoint(this, 'BedrockAgentEndpoint', {
-      vpc,
-      service: new ec2.InterfaceVpcEndpointService(
-        `com.amazonaws.${CONFIG.region}.bedrock-agent`, 443
-      ),
-      privateDnsEnabled: true,
-      subnets: { subnetType: ec2.SubnetType.PRIVATE_ISOLATED },
-    });
-
-    new ec2.InterfaceVpcEndpoint(this, 'EcrDockerEndpoint', {
-      vpc,
-      service: ec2.InterfaceVpcEndpointAwsService.ECR_DOCKER,
-      privateDnsEnabled: true,
-      subnets: { subnetType: ec2.SubnetType.PRIVATE_ISOLATED },
-    });
-
-    new ec2.InterfaceVpcEndpoint(this, 'EcrApiEndpoint', {
-      vpc,
-      service: ec2.InterfaceVpcEndpointAwsService.ECR,
-      privateDnsEnabled: true,
-      subnets: { subnetType: ec2.SubnetType.PRIVATE_ISOLATED },
-    });
-
-    new ec2.InterfaceVpcEndpoint(this, 'CloudWatchLogsEndpoint', {
-      vpc,
-      service: ec2.InterfaceVpcEndpointAwsService.CLOUDWATCH_LOGS,
-      privateDnsEnabled: true,
-      subnets: { subnetType: ec2.SubnetType.PRIVATE_ISOLATED },
-    });
-
-    // Lambda PrivateLink — so Fargate can invoke the sync function
-    new ec2.InterfaceVpcEndpoint(this, 'LambdaEndpoint', {
-      vpc,
-      service: ec2.InterfaceVpcEndpointAwsService.LAMBDA,
-      privateDnsEnabled: true,
-      subnets: { subnetType: ec2.SubnetType.PRIVATE_ISOLATED },
-    });
+    // VPC endpoints now live in NetworkingStack — created once, always available.
+    // No more DNS conflict race conditions on deploy/destroy cycles.
 
     const cluster = new ecs.Cluster(this, 'Cluster', {
       clusterName: `${CONFIG.projectName}-cluster`,
@@ -109,9 +59,18 @@ export class ComputeStack extends cdk.Stack {
     // Knowledge Base retrieval — scoped to our specific KB
     taskRole.addToPolicy(new iam.PolicyStatement({
       effect: iam.Effect.ALLOW,
-      actions: ['bedrock:Retrieve'],
+      actions: ['bedrock:GetIngestionJob', 'bedrock:Retrieve'],
       resources: [
-        `arn:aws:bedrock:${CONFIG.region}:${CONFIG.account}:knowledge-base/${CONFIG.knowledgeBaseId}`,
+        `arn:aws:bedrock:${CONFIG.region}:${CONFIG.account}:knowledge-base/${props.knowledgeBaseId}`,
+      ],
+    }));
+
+    // Guardrail invocation — applied during Converse calls
+    taskRole.addToPolicy(new iam.PolicyStatement({
+      effect: iam.Effect.ALLOW,
+      actions: ['bedrock:ApplyGuardrail'],
+      resources: [
+        `arn:aws:bedrock:${CONFIG.region}:${CONFIG.account}:guardrail/*`,
       ],
     }));
 
@@ -125,6 +84,13 @@ export class ComputeStack extends cdk.Stack {
     // DynamoDB — document metadata CRUD
     documentMetadataTable.grantReadWriteData(taskRole);
     chatHistoryTable.grantReadWriteData(taskRole);
+
+    // Lambda log group — explicit so CDK owns it and destroys it cleanly
+    const syncLogGroup = new logs.LogGroup(this, 'SyncFunctionLogGroup', {
+      logGroupName: '/aws/lambda/finsight-kb-sync',
+      retention: logs.RetentionDays.ONE_WEEK,
+      removalPolicy: cdk.RemovalPolicy.DESTROY,
+    });
 
     // Lambda for KB sync — runs outside VPC so Bedrock can validate Pinecone
     const syncFunction = new lambda.Function(this, 'SyncFunction', {
@@ -159,6 +125,7 @@ def handler(event, context):
         }
 `),
       timeout: cdk.Duration.seconds(30),
+      logGroup: syncLogGroup,
     });
 
     syncFunction.addToRolePolicy(new iam.PolicyStatement({
@@ -168,7 +135,7 @@ def handler(event, context):
         'bedrock:AssociateThirdPartyKnowledgeBase',
       ],
       resources: [
-        `arn:aws:bedrock:${CONFIG.region}:${CONFIG.account}:knowledge-base/${CONFIG.knowledgeBaseId}`,
+        `arn:aws:bedrock:${CONFIG.region}:${CONFIG.account}:knowledge-base/${props.knowledgeBaseId}`,
       ],
     }));
 
@@ -191,9 +158,11 @@ def handler(event, context):
         DOCUMENTS_BUCKET: documentsBucket.bucketName,
         DOCUMENT_METADATA_TABLE: documentMetadataTable.tableName,
         CHAT_HISTORY_TABLE: chatHistoryTable.tableName,
-        KNOWLEDGE_BASE_ID: CONFIG.knowledgeBaseId,
-        DATA_SOURCE_ID: 'RI9JEO7YN7',
+        KNOWLEDGE_BASE_ID: props.knowledgeBaseId,
+        DATA_SOURCE_ID: props.dataSourceId,
         SYNC_FUNCTION_NAME: syncFunction.functionName,
+        GUARDRAIL_ID: props.guardrailId,
+        GUARDRAIL_VERSION: props.guardrailVersion,
       },
       portMappings: [{ containerPort: 8000 }],
     });
@@ -203,6 +172,8 @@ def handler(event, context):
       vpc,
       internetFacing: true,
     });
+
+    alb.setAttribute('idle_timeout.timeout_seconds', '120');
 
     this.albDnsName = alb.loadBalancerDnsName;
 
